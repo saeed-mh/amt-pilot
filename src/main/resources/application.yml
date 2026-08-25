@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: amtpilot
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/amtpilot}
+    username: ${DB_USERNAME:amtpilot}
+    password: ${DB_PASSWORD:amtpilot}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+info:
+  app:
+    name: AmtPilot
+    description: AI-powered German bureaucracy copilot
+    version: '@project.version@'
