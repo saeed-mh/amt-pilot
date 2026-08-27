@@ -1,0 +1,38 @@
+package com.amtpilot.service;
+
+import java.util.Locale;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.amtpilot.auth.exception.EmailAlreadyExistsException;
+import com.amtpilot.entity.User;
+import com.amtpilot.repository.UserRepository;
+
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class UserService {
+
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+    
+    @Transactional
+    public User register(String email, String password) {
+        
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            throw new EmailAlreadyExistsException();
+        }
+ 
+        String hashedPassword = passwordEncoder.encode(password);
+        User createdUser = new User(normalizedEmail, hashedPassword);
+        return userRepository.save(createdUser);
+    }
+}

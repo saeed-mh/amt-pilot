@@ -13,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.amtpilot.auth.exception.EmailAlreadyExistsException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -39,6 +41,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.failure(error, traceId(request)));
     }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExists(
+                EmailAlreadyExistsException exception,
+                HttpServletRequest request) {
+
+        ApiError error = new ApiError(
+            "EMAIL_ALREADY_EXISTS",
+            exception.getMessage(),
+            Map.of());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure(error, traceId(request)));
+
+        }
+
+
+
+    
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiResponse<Void>> handleUnexpected(
