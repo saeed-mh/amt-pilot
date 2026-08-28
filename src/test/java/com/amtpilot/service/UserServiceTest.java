@@ -1,6 +1,9 @@
 package com.amtpilot.service;
 
+import java.util.Optional;
+
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
+import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.entity.User;
 import com.amtpilot.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -11,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -62,6 +66,53 @@ public class UserServiceTest {
         verify(passwordEncoder, never()).encode(anyString());
         verify(userRepository, never()).save(any(User.class));
 
+    }
+
+    @Test
+    public void shouldAuthenticateUserWithCorrectCredentials() {
+        User user = new User("student@example.com", "HASHED_PASSWORD");
+
+        when(userRepository.findByEmail("student@example.com"))
+                .thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correctPassword", "HASHED_PASSWORD"))
+                .thenReturn(true);
+
+        User result = userService.authenticate(
+                " Student@Example.com ",
+                "correctPassword");
+
+        assertSame(user, result);
+        verify(passwordEncoder).matches("correctPassword", "HASHED_PASSWORD");
+    }
+
+    @Test
+    public void shouldRejectUnknownEmail() {
+        when(userRepository.findByEmail("unknown@example.com"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> userService.authenticate(
+                        "unknown@example.com",
+                        "correctPassword"));
+
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    public void shouldRejectWrongPassword() {
+        User user = new User("student@example.com", "HASHED_PASSWORD");
+
+        when(userRepository.findByEmail("student@example.com"))
+                .thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPassword", "HASHED_PASSWORD"))
+                .thenReturn(false);
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> userService.authenticate(
+                        "student@example.com",
+                        "wrongPassword"));
     }
 
 }

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
+import com.amtpilot.auth.exception.InvalidCredentialsException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -68,6 +69,20 @@ public class GlobalExceptionHandler {
                                 Map.of());
 
                 return ResponseEntity.badRequest()
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(InvalidCredentialsException.class)
+        ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(
+                        InvalidCredentialsException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "INVALID_CREDENTIALS",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                                 .body(ApiResponse.failure(error, traceId(request)));
         }
 
