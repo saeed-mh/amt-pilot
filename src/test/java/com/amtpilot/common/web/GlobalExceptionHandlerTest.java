@@ -37,10 +37,26 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void returnsMalformedJsonError() throws Exception {
+        MvcResult result = mockMvc.perform(post("/test/validation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("MALFORMED_JSON"))
+                .andExpect(jsonPath("$.error.message")
+                        .value("Request body contains invalid JSON"))
+                .andReturn();
+
+        assertTraceIdMatchesResponseHeader(result);
+    }
+
+    @Test
     void returnsStructuredValidationError() throws Exception {
         MvcResult result = mockMvc.perform(post("/test/validation")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
                 .andExpect(jsonPath("$.success").value(false))

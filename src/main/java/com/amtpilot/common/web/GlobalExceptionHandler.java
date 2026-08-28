@@ -12,74 +12,84 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    ResponseEntity<ApiResponse<Void>> handleValidation(
-            MethodArgumentNotValidException exception,
-            HttpServletRequest request) {
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        ResponseEntity<ApiResponse<Void>> handleValidation(
+                        MethodArgumentNotValidException exception,
+                        HttpServletRequest request) {
 
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-        for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
-            String message = fieldError.getDefaultMessage() == null
-                    ? "Invalid value"
-                    : fieldError.getDefaultMessage();
-            fieldErrors.putIfAbsent(fieldError.getField(), message);
+                Map<String, String> fieldErrors = new LinkedHashMap<>();
+                for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
+                        String message = fieldError.getDefaultMessage() == null
+                                        ? "Invalid value"
+                                        : fieldError.getDefaultMessage();
+                        fieldErrors.putIfAbsent(fieldError.getField(), message);
+                }
+
+                ApiError error = new ApiError(
+                                "VALIDATION_FAILED",
+                                "Request validation failed",
+                                fieldErrors);
+
+                return ResponseEntity.badRequest()
+                                .body(ApiResponse.failure(error, traceId(request)));
         }
 
-        ApiError error = new ApiError(
-                "VALIDATION_FAILED",
-                "Request validation failed",
-                fieldErrors);
+        @ExceptionHandler(EmailAlreadyExistsException.class)
+        ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExists(
+                        EmailAlreadyExistsException exception,
+                        HttpServletRequest request) {
 
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.failure(error, traceId(request)));
-    }
+                ApiError error = new ApiError(
+                                "EMAIL_ALREADY_EXISTS",
+                                exception.getMessage(),
+                                Map.of());
 
-    @ExceptionHandler(EmailAlreadyExistsException.class)
-    ResponseEntity<ApiResponse<Void>> handleEmailAlreadyExists(
-                EmailAlreadyExistsException exception,
-                HttpServletRequest request) {
-
-        ApiError error = new ApiError(
-            "EMAIL_ALREADY_EXISTS",
-            exception.getMessage(),
-            Map.of());
-
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.failure(error, traceId(request)));
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiResponse.failure(error, traceId(request)));
 
         }
 
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        ResponseEntity<ApiResponse<Void>> handleMalformedJson(
+                        HttpMessageNotReadableException exception,
+                        HttpServletRequest request) {
 
+                ApiError error = new ApiError(
+                                "MALFORMED_JSON",
+                                "Request body contains invalid JSON",
+                                Map.of());
 
-    
+                return ResponseEntity.badRequest()
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
 
-    @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiResponse<Void>> handleUnexpected(
-            Exception exception,
-            HttpServletRequest request) {
+        @ExceptionHandler(Exception.class)
+        ResponseEntity<ApiResponse<Void>> handleUnexpected(
+                        Exception exception,
+                        HttpServletRequest request) {
 
-        String traceId = traceId(request);
-        log.error("Unexpected request failure (traceId={})", traceId, exception);
+                String traceId = traceId(request);
+                log.error("Unexpected request failure (traceId={})", traceId, exception);
 
-        ApiError error = new ApiError(
-                "INTERNAL_ERROR",
-                "An unexpected error occurred",
-                Map.of());
+                ApiError error = new ApiError(
+                                "INTERNAL_ERROR",
+                                "An unexpected error occurred",
+                                Map.of());
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.failure(error, traceId));
-    }
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(ApiResponse.failure(error, traceId));
+        }
 
-    private String traceId(HttpServletRequest request) {
-        Object value = request.getAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE);
-        return value instanceof String id ? id : "unknown";
-    }
+        private String traceId(HttpServletRequest request) {
+                Object value = request.getAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE);
+                return value instanceof String id ? id : "unknown";
+        }
 }
