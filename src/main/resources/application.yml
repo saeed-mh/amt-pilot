@@ -35,3 +35,8 @@ info:
     name: AmtPilot
     description: AI-powered German bureaucracy copilot
     version: '@project.version@'
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-seconds: 3600
