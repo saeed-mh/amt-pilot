@@ -1,7 +1,10 @@
 package com.amtpilot.auth.controller;
 
+import com.amtpilot.auth.dto.LoginRequest;
+import com.amtpilot.auth.dto.LoginResponse;
 import com.amtpilot.auth.dto.RegisterRequest;
 import com.amtpilot.auth.dto.RegisterResponse;
+import com.amtpilot.auth.service.JwtService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
 import com.amtpilot.entity.User;
@@ -20,9 +23,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, JwtService jwtService) {
         this.userService = userService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -41,5 +46,23 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, traceId));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+        User user = userService.authenticate(
+                request.getEmail(),
+                request.getPassword());
+
+        String token = jwtService.generateToken(user);
+
+        LoginResponse response = new LoginResponse(
+                token,
+                "Bearer",
+                jwtService.getExpirationSeconds());
+
+        return ResponseEntity.ok(ApiResponse.success(response, traceId));
     }
 }

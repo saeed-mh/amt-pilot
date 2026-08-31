@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
+import com.amtpilot.auth.service.JwtService;
 import com.amtpilot.common.web.GlobalExceptionHandler;
 import com.amtpilot.common.web.TraceIdFilter;
 import com.amtpilot.entity.User;
@@ -33,12 +34,15 @@ class AuthControllerTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private JwtService jwtService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new AuthController(userService))
+                .standaloneSetup(new AuthController(userService, jwtService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .addFilters(new TraceIdFilter())
                 .build();
@@ -114,6 +118,39 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error.code").value("EMAIL_ALREADY_EXISTS"))
                 .andExpect(jsonPath("$.error.message")
                         .value("An account with this email already exists"));
+    }
+
+    @Test
+    void logsInUserAndReturnsJwtResponse() throws Exception {
+        User user = mock(User.class);
+
+        when(userService.authenticate(
+                "student@example.com",
+                "strongPassword123"))
+                .thenReturn(user);
+        when(jwtService.generateToken(user))
+                .thenReturn("header.payload.signature");
+        when(jwtService.getExpirationSeconds())
+                .thenReturn(3600L);
+
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "student@example.com",
+                                  "password": "strongPassword123"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken")
+                        .value("header.payload.signature"))
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.data.expiresIn").value(3600))
+                .andReturn();
+
+        assertTraceIdMatchesResponseHeader(result);
     }
 
     private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
