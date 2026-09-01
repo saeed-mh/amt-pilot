@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
+import com.amtpilot.user.exception.UserNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -83,6 +84,20 @@ public class GlobalExceptionHandler {
                                 Map.of());
 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(UserNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleUserNotFound(
+                        UserNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "USER_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
                                 .body(ApiResponse.failure(error, traceId(request)));
         }
 

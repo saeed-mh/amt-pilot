@@ -1,11 +1,13 @@
 package com.amtpilot.service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.entity.User;
 import com.amtpilot.repository.UserRepository;
+import com.amtpilot.user.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -113,6 +115,33 @@ public class UserServiceTest {
                 () -> userService.authenticate(
                         "student@example.com",
                         "wrongPassword"));
+    }
+
+    @Test
+    public void shouldReturnUserById() {
+        UUID userId = UUID.randomUUID();
+        User user = new User("student@example.com", "HASHED_PASSWORD");
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        User result = userService.getById(userId);
+
+        assertSame(user, result);
+        verify(userRepository).findById(userId);
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenUserIdDoesNotExist() {
+        UUID userId = UUID.randomUUID();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        UserNotFoundException exception = assertThrows(
+                UserNotFoundException.class,
+                () -> userService.getById(userId));
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userRepository).findById(userId);
     }
 
 }

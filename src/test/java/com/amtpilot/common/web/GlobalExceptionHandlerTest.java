@@ -1,5 +1,6 @@
 package com.amtpilot.common.web;
 
+import com.amtpilot.user.exception.UserNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,6 +82,19 @@ class GlobalExceptionHandlerTest {
         assertTraceIdMatchesResponseHeader(result);
     }
 
+    @Test
+    void returnsUserNotFoundError() throws Exception {
+        MvcResult result = mockMvc.perform(get("/test/user-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("USER_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.message").value("User not found"))
+                .andReturn();
+
+        assertTraceIdMatchesResponseHeader(result);
+    }
+
     private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
         String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
         assertThat(traceId).isNotBlank();
@@ -98,6 +112,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/failure")
         void fail() {
             throw new IllegalStateException("Sensitive internal detail");
+        }
+
+        @GetMapping("/test/user-not-found")
+        void userNotFound() {
+            throw new UserNotFoundException();
         }
     }
 

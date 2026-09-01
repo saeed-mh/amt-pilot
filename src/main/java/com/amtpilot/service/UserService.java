@@ -1,6 +1,7 @@
 package com.amtpilot.service;
 
 import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.entity.User;
 import com.amtpilot.repository.UserRepository;
+import com.amtpilot.user.exception.UserNotFoundException;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,5 +50,11 @@ public class UserService {
         }
 
         return user;
+    }
+
+    @Transactional(readOnly = true)
+    public User getById(UUID id) {
+        return userRepository.findById(id)
+                .orElseThrow(UserNotFoundException::new);
     }
 }
