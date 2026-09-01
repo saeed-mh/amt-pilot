@@ -21,6 +21,7 @@ import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.entity.User;
 import com.amtpilot.enums.Role;
 import com.amtpilot.service.UserService;
+import com.amtpilot.user.dto.UpdateUserProfileRequest;
 import com.amtpilot.user.dto.UserProfileResponse;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,5 +76,57 @@ class UserControllerTest {
         assertThat(response.getBody().traceId()).isEqualTo("trace-123");
 
         verify(userService).getById(userId);
+    }
+
+    @Test
+    void updatesCurrentUserProfileFromJwtSubject() {
+        UUID userId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-09-01T10:00:00Z");
+
+        Jwt jwt = mock(Jwt.class);
+        User user = mock(User.class);
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(
+                "de",
+                "Dortmund",
+                "Iran",
+                "STUDENT",
+                "Europe/Berlin");
+
+        when(jwt.getSubject()).thenReturn(userId.toString());
+        when(userService.updateProfile(userId, request)).thenReturn(user);
+
+        when(user.getId()).thenReturn(userId);
+        when(user.getEmail()).thenReturn("student@example.com");
+        when(user.getPreferredLanguage()).thenReturn("de");
+        when(user.getCity()).thenReturn("Dortmund");
+        when(user.getCountryOfOrigin()).thenReturn("Iran");
+        when(user.getUserType()).thenReturn("STUDENT");
+        when(user.getTimezone()).thenReturn("Europe/Berlin");
+        when(user.getRole()).thenReturn(Role.USER);
+        when(user.getCreatedAt()).thenReturn(createdAt);
+
+        ResponseEntity<ApiResponse<UserProfileResponse>> response =
+                userController.updateCurrentUser(jwt, request, "trace-456");
+
+        UserProfileResponse expectedProfile = new UserProfileResponse(
+                userId,
+                "student@example.com",
+                "de",
+                "Dortmund",
+                "Iran",
+                "STUDENT",
+                "Europe/Berlin",
+                Role.USER,
+                createdAt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().success()).isTrue();
+        assertThat(response.getBody().data()).isEqualTo(expectedProfile);
+        assertThat(response.getBody().error()).isNull();
+        assertThat(response.getBody().traceId()).isEqualTo("trace-456");
+
+        verify(userService).updateProfile(userId, request);
     }
 }

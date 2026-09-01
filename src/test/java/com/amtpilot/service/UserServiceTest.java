@@ -7,6 +7,7 @@ import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.entity.User;
 import com.amtpilot.repository.UserRepository;
+import com.amtpilot.user.dto.UpdateUserProfileRequest;
 import com.amtpilot.user.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -139,6 +140,54 @@ public class UserServiceTest {
         UserNotFoundException exception = assertThrows(
                 UserNotFoundException.class,
                 () -> userService.getById(userId));
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userRepository).findById(userId);
+    }
+
+    @Test
+    public void shouldUpdateOnlyProvidedProfileFields() {
+        UUID userId = UUID.randomUUID();
+        User user = new User("student@example.com", "HASHED_PASSWORD");
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(
+                null,
+                " Berlin ",
+                " Iran ",
+                " STUDENT ",
+                null);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        User result = userService.updateProfile(userId, request);
+
+        assertSame(user, result);
+        assertEquals("en", result.getPreferredLanguage());
+        assertEquals("Berlin", result.getCity());
+        assertEquals("Iran", result.getCountryOfOrigin());
+        assertEquals("STUDENT", result.getUserType());
+        assertEquals("Europe/Berlin", result.getTimezone());
+
+        verify(userRepository).findById(userId);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    public void shouldThrowExceptionWhenUpdatingMissingUser() {
+        UUID userId = UUID.randomUUID();
+
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(
+                null,
+                "Berlin",
+                null,
+                null,
+                null);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        UserNotFoundException exception = assertThrows(
+                UserNotFoundException.class,
+                () -> userService.updateProfile(userId, request));
 
         assertEquals("User not found", exception.getMessage());
         verify(userRepository).findById(userId);

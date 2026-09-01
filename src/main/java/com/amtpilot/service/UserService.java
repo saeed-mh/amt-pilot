@@ -10,6 +10,7 @@ import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.entity.User;
 import com.amtpilot.repository.UserRepository;
+import com.amtpilot.user.dto.UpdateUserProfileRequest;
 import com.amtpilot.user.exception.UserNotFoundException;
 
 import org.springframework.transaction.annotation.Transactional;
@@ -56,5 +57,33 @@ public class UserService {
     public User getById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(UserNotFoundException::new);
+    }
+
+    @Transactional
+    public User updateProfile(UUID id, UpdateUserProfileRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (request.preferredLanguage() != null) {
+            user.setPreferredLanguage(request.preferredLanguage().trim());
+        }
+
+        if (request.city() != null) {
+            user.setCity(request.city().trim());
+        }
+
+        if (request.countryOfOrigin() != null) {
+            user.setCountryOfOrigin(request.countryOfOrigin().trim());
+        }
+
+        if (request.userType() != null) {
+            user.setUserType(request.userType().trim());
+        }
+
+        if (request.timezone() != null) {
+            user.setTimezone(request.timezone().trim());
+        }
+
+        return user;
     }
 }
