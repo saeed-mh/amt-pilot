@@ -12,6 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      JWT_SECRET: ci-test-secret-key-that-is-at-least-32-bytes
 
     steps:
       - name: Check out repository
