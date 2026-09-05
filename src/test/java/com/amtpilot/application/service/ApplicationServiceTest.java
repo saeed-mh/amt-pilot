@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amtpilot.application.dto.ApplicationResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
+import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.User;
@@ -70,7 +71,7 @@ class ApplicationServiceTest {
                 when(process.getTitle())
                                 .thenReturn("Address Registration");
 
-                when(applicationRepository.save(any(Application.class)))
+                when(applicationRepository.saveAndFlush(any(Application.class)))
                                 .thenAnswer(invocation -> invocation.getArgument(0));
 
                 CreateApplicationRequest request = new CreateApplicationRequest(processId);
@@ -89,7 +90,7 @@ class ApplicationServiceTest {
 
                 ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
 
-                verify(applicationRepository).save(captor.capture());
+                verify(applicationRepository).saveAndFlush(captor.capture());
 
                 Application savedApplication = captor.getValue();
 
@@ -123,7 +124,7 @@ class ApplicationServiceTest {
                                 exception.getMessage());
 
                 verify(applicationRepository, never())
-                                .save(any(Application.class));
+                                .saveAndFlush(any(Application.class));
         }
 
         @Test
@@ -153,7 +154,7 @@ class ApplicationServiceTest {
 
                 verify(applicationRepository, never())
 
-                                .save(any(Application.class));
+                                .saveAndFlush(any(Application.class));
         }
 
         @Test
@@ -203,5 +204,75 @@ class ApplicationServiceTest {
 
                 verify(applicationRepository)
                                 .findByUserIdOrderByCreatedAtDesc(userId);
+        }
+
+        @Test
+        void returnsApplicationOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+
+                Application application = org.mockito.Mockito.mock(Application.class);
+
+                ProcessDefinition process = org.mockito.Mockito.mock(ProcessDefinition.class);
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.of(application));
+
+                when(application.getId()).thenReturn(applicationId);
+                when(application.getProcess()).thenReturn(process);
+                when(application.getStatus())
+                                .thenReturn(ApplicationStatus.DRAFT);
+                when(application.getCompleteness()).thenReturn((short) 0);
+                when(application.getCreatedAt()).thenReturn(createdAt);
+                when(application.getUpdatedAt()).thenReturn(createdAt);
+
+                when(process.getId()).thenReturn(processId);
+                when(process.getCode())
+                                .thenReturn("DO_ADDRESS_REGISTRATION");
+                when(process.getTitle())
+                                .thenReturn("Address Registration");
+
+                ApplicationResponse result = applicationService.getApplicationForUser(
+                                userId,
+                                applicationId);
+
+                assertEquals(applicationId, result.id());
+                assertEquals(processId, result.processId());
+                assertEquals(
+                                "DO_ADDRESS_REGISTRATION",
+                                result.processCode());
+                assertEquals(ApplicationStatus.DRAFT, result.status());
+
+                verify(applicationRepository)
+                                .findByIdAndUserId(applicationId, userId);
+        }
+
+        @Test
+        void rejectsApplicationNotOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.empty());
+
+                ApplicationNotFoundException exception = assertThrows(
+                                ApplicationNotFoundException.class,
+                                () -> applicationService.getApplicationForUser(
+                                                userId,
+                                                applicationId));
+
+                assertEquals(
+                                "Application not found: " + applicationId,
+                                exception.getMessage());
+
+                verify(applicationRepository)
+                                .findByIdAndUserId(applicationId, userId);
         }
 }

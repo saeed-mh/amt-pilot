@@ -18,12 +18,12 @@ public class SecurityConfiguration {
 		return http
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.oauth2ResourceServer(resourceServer ->
-						resourceServer.jwt(Customizer.withDefaults()))
+				.oauth2ResourceServer(resourceServer -> resourceServer.jwt(Customizer.withDefaults()))
 				.authorizeHttpRequests(requests -> requests
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-						.requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+						.requestMatchers("/", "/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**",
+								"/swagger-ui.html")
 						.permitAll()
 						.anyRequest().authenticated())
 				.build();

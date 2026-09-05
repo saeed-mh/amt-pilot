@@ -13,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+
+import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.user.exception.UserNotFoundException;
@@ -109,6 +111,20 @@ public class GlobalExceptionHandler {
 
                 ApiError error = new ApiError(
                                 "PROCESS_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(ApplicationNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleApplicationNotFound(
+                        ApplicationNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "APPLICATION_NOT_FOUND",
                                 exception.getMessage(),
                                 Map.of());
 
