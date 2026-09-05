@@ -1,6 +1,7 @@
 package com.amtpilot.application.controller;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -26,54 +27,97 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ApplicationControllerTest {
 
-    @Mock
-    private ApplicationService applicationService;
+        @Mock
+        private ApplicationService applicationService;
 
-    @InjectMocks
-    private ApplicationController applicationController;
+        @InjectMocks
+        private ApplicationController applicationController;
 
-    @Test
-    void createsApplicationForAuthenticatedUser() {
-        UUID userId = UUID.randomUUID();
-        UUID processId = UUID.randomUUID();
-        UUID applicationId = UUID.randomUUID();
+        @Test
+        void createsApplicationForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
 
-        Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
 
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getSubject()).thenReturn(userId.toString());
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
 
-        CreateApplicationRequest request = new CreateApplicationRequest(processId);
+                CreateApplicationRequest request = new CreateApplicationRequest(processId);
 
-        ApplicationResponse application = new ApplicationResponse(
-                applicationId,
-                processId,
-                "DO_ADDRESS_REGISTRATION",
-                "Address Registration",
-                ApplicationStatus.DRAFT,
-                0,
-                createdAt,
-                createdAt);
+                ApplicationResponse application = new ApplicationResponse(
+                                applicationId,
+                                processId,
+                                "DO_ADDRESS_REGISTRATION",
+                                "Address Registration",
+                                ApplicationStatus.DRAFT,
+                                0,
+                                createdAt,
+                                createdAt);
 
-        when(applicationService.create(userId, request))
-                .thenReturn(application);
+                when(applicationService.create(userId, request))
+                                .thenReturn(application);
 
-        ResponseEntity<ApiResponse<ApplicationResponse>> response = applicationController.createApplication(
-                jwt,
-                request,
-                "trace-123");
+                ResponseEntity<ApiResponse<ApplicationResponse>> response = applicationController.createApplication(
+                                jwt,
+                                request,
+                                "trace-123");
 
-        assertThat(response.getStatusCode())
-                .isEqualTo(HttpStatus.CREATED);
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.CREATED);
 
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().success()).isTrue();
-        assertThat(response.getBody().data())
-                .isEqualTo(application);
-        assertThat(response.getBody().error()).isNull();
-        assertThat(response.getBody().traceId())
-                .isEqualTo("trace-123");
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .isEqualTo(application);
+                assertThat(response.getBody().error()).isNull();
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-123");
 
-        verify(applicationService).create(userId, request);
-    }
+                verify(applicationService).create(userId, request);
+        }
+
+        @Test
+        void returnsApplicationsForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                ApplicationResponse application = new ApplicationResponse(
+                                applicationId,
+                                processId,
+                                "DO_ADDRESS_REGISTRATION",
+                                "Address Registration",
+                                ApplicationStatus.DRAFT,
+                                0,
+                                createdAt,
+                                createdAt);
+
+                when(applicationService.getApplicationsForUser(userId))
+                                .thenReturn(List.of(application));
+
+                ResponseEntity<ApiResponse<List<ApplicationResponse>>> response = applicationController.getApplications(
+                                jwt,
+                                "trace-456");
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.OK);
+
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .containsExactly(application);
+                assertThat(response.getBody().error()).isNull();
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-456");
+
+                verify(applicationService)
+                                .getApplicationsForUser(userId);
+        }
 }

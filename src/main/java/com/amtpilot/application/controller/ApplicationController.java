@@ -1,11 +1,13 @@
 package com.amtpilot.application.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,5 +44,18 @@ public class ApplicationController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, traceId));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getApplications(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        List<ApplicationResponse> applications = applicationService.getApplicationsForUser(userId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(applications, traceId));
     }
 }

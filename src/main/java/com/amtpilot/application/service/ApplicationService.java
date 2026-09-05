@@ -1,5 +1,6 @@
 package com.amtpilot.application.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -52,6 +53,15 @@ public class ApplicationService {
         Application savedApplication = applicationRepository.save(application);
 
         return toResponse(savedApplication);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApplicationResponse> getApplicationsForUser(UUID userId) {
+        return applicationRepository
+                .findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private ApplicationResponse toResponse(Application application) {
