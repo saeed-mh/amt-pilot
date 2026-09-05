@@ -1,9 +1,11 @@
 package com.amtpilot.process.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
 import com.amtpilot.process.dto.ProcessResponse;
+import com.amtpilot.process.dto.RequirementResponse;
 import com.amtpilot.process.service.ProcessService;
 
 @RestController
@@ -27,13 +30,22 @@ public class ProcessController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<ProcessResponse>>> getProcesses(
             @RequestParam(defaultValue = "Dortmund") String city,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE)
-            String traceId) {
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        List<ProcessResponse> processes =
-                processService.getProcessesByCity(city);
+        List<ProcessResponse> processes = processService.getProcessesByCity(city);
 
         return ResponseEntity.ok(
                 ApiResponse.success(processes, traceId));
+    }
+
+    @GetMapping("/{processId}/requirements")
+    public ResponseEntity<ApiResponse<List<RequirementResponse>>> getRequirements(
+            @PathVariable UUID processId,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+
+        List<RequirementResponse> requirements = processService.getRequirements(processId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(requirements, traceId));
     }
 }
