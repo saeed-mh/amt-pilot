@@ -16,6 +16,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.user.exception.UserNotFoundException;
+import com.amtpilot.process.exception.ProcessNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -94,6 +95,20 @@ public class GlobalExceptionHandler {
 
                 ApiError error = new ApiError(
                                 "USER_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(ProcessNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleProcessNotFound(
+                        ProcessNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "PROCESS_NOT_FOUND",
                                 exception.getMessage(),
                                 Map.of());
 
