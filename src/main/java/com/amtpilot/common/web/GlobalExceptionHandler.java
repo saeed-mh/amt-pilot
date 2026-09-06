@@ -16,6 +16,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
+import com.amtpilot.application.exception.DocumentNotFoundException;
 import com.amtpilot.application.exception.DocumentStorageException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
 import com.amtpilot.application.exception.InvalidDocumentException;
@@ -200,6 +201,22 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body(ApiResponse.failure(error, traceId));
+        }
+
+        @ExceptionHandler(DocumentNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleDocumentNotFound(
+                        DocumentNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "DOCUMENT_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(
+                                                error,
+                                                traceId(request)));
         }
 
         @ExceptionHandler(Exception.class)
