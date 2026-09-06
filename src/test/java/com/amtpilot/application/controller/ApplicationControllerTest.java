@@ -14,8 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.amtpilot.application.dto.ApplicationResponse;
+import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
+import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.service.ApplicationService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.enums.ApplicationStatus;
@@ -135,8 +137,7 @@ class ApplicationControllerTest {
                 when(jwt.getSubject()).thenReturn(userId.toString());
 
                 UpdateApplicationRequest request = new UpdateApplicationRequest(
-                                ApplicationStatus.ACTION_REQUIRED,
-                                40);
+                                ApplicationStatus.ACTION_REQUIRED);
 
                 ApplicationResponse updatedApplication = new ApplicationResponse(
                                 applicationId,
@@ -175,5 +176,99 @@ class ApplicationControllerTest {
                                 userId,
                                 applicationId,
                                 request);
+        }
+
+        @Test
+        void returnsChecklistForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID checklistItemId = UUID.randomUUID();
+                UUID requirementId = UUID.randomUUID();
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                ChecklistItemResponse checklistItem = new ChecklistItemResponse(
+                                checklistItemId,
+                                requirementId,
+                                "PASSPORT",
+                                "Passport",
+                                true,
+                                false);
+
+                when(applicationService.getChecklistForUser(
+                                userId,
+                                applicationId))
+                                .thenReturn(List.of(checklistItem));
+
+                ResponseEntity<ApiResponse<List<ChecklistItemResponse>>> response = applicationController.getChecklist(
+                                jwt,
+                                applicationId,
+                                "trace-checklist");
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.OK);
+
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .containsExactly(checklistItem);
+                assertThat(response.getBody().error()).isNull();
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-checklist");
+
+                verify(applicationService)
+                                .getChecklistForUser(
+                                                userId,
+                                                applicationId);
+        }
+
+        @Test
+        void updatesChecklistItemForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID checklistItemId = UUID.randomUUID();
+                UUID requirementId = UUID.randomUUID();
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                UpdateChecklistItemRequest request = new UpdateChecklistItemRequest(true);
+
+                ChecklistItemResponse updatedItem = new ChecklistItemResponse(
+                                checklistItemId,
+                                requirementId,
+                                "PASSPORT",
+                                "Passport",
+                                true,
+                                true);
+
+                when(applicationService.updateChecklistItem(
+                                userId,
+                                checklistItemId,
+                                request))
+                                .thenReturn(updatedItem);
+
+                ResponseEntity<ApiResponse<ChecklistItemResponse>> response = applicationController.updateChecklistItem(
+                                jwt,
+                                checklistItemId,
+                                request,
+                                "trace-update");
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.OK);
+
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .isEqualTo(updatedItem);
+                assertThat(response.getBody().error()).isNull();
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-update");
+
+                verify(applicationService)
+                                .updateChecklistItem(
+                                                userId,
+                                                checklistItemId,
+                                                request);
         }
 }

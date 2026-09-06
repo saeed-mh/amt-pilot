@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.amtpilot.application.dto.ApplicationResponse;
+import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
+import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.service.ApplicationService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
@@ -92,5 +94,48 @@ public class ApplicationController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(application, traceId));
+    }
+
+    @GetMapping("/{applicationId}/checklist")
+    public ResponseEntity<ApiResponse<List<ChecklistItemResponse>>>
+            getChecklist(
+                    @AuthenticationPrincipal Jwt jwt,
+                    @PathVariable UUID applicationId,
+                    @RequestAttribute(
+                            TraceIdFilter.TRACE_ID_ATTRIBUTE)
+                    String traceId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        List<ChecklistItemResponse> checklist =
+                applicationService.getChecklistForUser(
+                        userId,
+                        applicationId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(checklist, traceId));
+    }
+
+    @PatchMapping("/checklist/{checklistItemId}")
+    public ResponseEntity<ApiResponse<ChecklistItemResponse>>
+            updateChecklistItem(
+                    @AuthenticationPrincipal Jwt jwt,
+                    @PathVariable UUID checklistItemId,
+                    @Valid @RequestBody
+                    UpdateChecklistItemRequest request,
+                    @RequestAttribute(
+                            TraceIdFilter.TRACE_ID_ATTRIBUTE)
+                    String traceId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        ChecklistItemResponse checklistItem =
+                applicationService.updateChecklistItem(
+                        userId,
+                        checklistItemId,
+                        request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(checklistItem, traceId));
     }
 }

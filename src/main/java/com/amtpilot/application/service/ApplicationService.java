@@ -10,7 +10,9 @@ import com.amtpilot.application.dto.ApplicationResponse;
 import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
+import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
+import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ProcessDefinition;
@@ -27,146 +29,192 @@ import com.amtpilot.user.exception.UserNotFoundException;
 @Service
 public class ApplicationService {
 
-    private final ApplicationRepository applicationRepository;
-    private final UserRepository userRepository;
-    private final ProcessDefinitionRepository processRepository;
-    private final RequirementDefinitionRepository requirementRepository;
-    private final ApplicationChecklistItemRepository checklistRepository;
+        private final ApplicationRepository applicationRepository;
+        private final UserRepository userRepository;
+        private final ProcessDefinitionRepository processRepository;
+        private final RequirementDefinitionRepository requirementRepository;
+        private final ApplicationChecklistItemRepository checklistRepository;
 
-    public ApplicationService(
-            ApplicationRepository applicationRepository,
-            UserRepository userRepository,
-            ProcessDefinitionRepository processRepository,
-            RequirementDefinitionRepository requirementRepository,
-            ApplicationChecklistItemRepository checklistRepository) {
-        this.applicationRepository = applicationRepository;
-        this.userRepository = userRepository;
-        this.processRepository = processRepository;
-        this.requirementRepository = requirementRepository;
-        this.checklistRepository = checklistRepository;
-    }
-
-    @Transactional
-    public ApplicationResponse create(
-            UUID userId,
-            CreateApplicationRequest request) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(UserNotFoundException::new);
-
-        ProcessDefinition process = processRepository
-                .findById(request.processId())
-                .orElseThrow(() -> new ProcessNotFoundException(request.processId()));
-
-        if (!process.isActive()) {
-            throw new ProcessNotFoundException(request.processId());
+        public ApplicationService(
+                        ApplicationRepository applicationRepository,
+                        UserRepository userRepository,
+                        ProcessDefinitionRepository processRepository,
+                        RequirementDefinitionRepository requirementRepository,
+                        ApplicationChecklistItemRepository checklistRepository) {
+                this.applicationRepository = applicationRepository;
+                this.userRepository = userRepository;
+                this.processRepository = processRepository;
+                this.requirementRepository = requirementRepository;
+                this.checklistRepository = checklistRepository;
         }
 
-        Application application = new Application(user, process);
-        Application savedApplication = applicationRepository.saveAndFlush(application);
+        @Transactional
+        public ApplicationResponse create(
+                        UUID userId,
+                        CreateApplicationRequest request) {
 
-        List<RequirementDefinition> requirements =
-                requirementRepository
-                        .findByProcessIdOrderByTitleAsc(process.getId());
+                User user = userRepository.findById(userId)
+                                .orElseThrow(UserNotFoundException::new);
 
-        List<ApplicationChecklistItem> checklistItems =
-                requirements.stream()
-                        .map(requirement ->
-                                new ApplicationChecklistItem(
-                                        savedApplication,
-                                        requirement))
-                        .toList();
+                ProcessDefinition process = processRepository
+                                .findById(request.processId())
+                                .orElseThrow(() -> new ProcessNotFoundException(request.processId()));
 
-        checklistRepository.saveAll(checklistItems);
+                if (!process.isActive()) {
+                        throw new ProcessNotFoundException(request.processId());
+                }
 
-        return toResponse(savedApplication);
-    }
+                Application application = new Application(user, process);
+                Application savedApplication = applicationRepository.saveAndFlush(application);
 
-    @Transactional(readOnly = true)
-    public List<ApplicationResponse> getApplicationsForUser(UUID userId) {
-        return applicationRepository
-                .findByUserIdOrderByCreatedAtDesc(userId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
-    }
+                List<RequirementDefinition> requirements = requirementRepository
+                                .findByProcessIdOrderByTitleAsc(process.getId());
 
-    @Transactional(readOnly = true)
-    public List<ChecklistItemResponse> getChecklistForUser(
-            UUID userId,
-            UUID applicationId) {
+                List<ApplicationChecklistItem> checklistItems = requirements.stream()
+                                .map(requirement -> new ApplicationChecklistItem(
+                                                savedApplication,
+                                                requirement))
+                                .toList();
 
-        applicationRepository
-                .findByIdAndUserId(applicationId, userId)
-                .orElseThrow(
-                        () -> new ApplicationNotFoundException(
-                                applicationId));
+                checklistRepository.saveAll(checklistItems);
 
-        return checklistRepository
-                .findByApplicationIdOrderByRequirementTitleAsc(
-                        applicationId)
-                .stream()
-                .map(this::toChecklistItemResponse)
-                .toList();
-    }
+                return toResponse(savedApplication);
+        }
 
-    @Transactional(readOnly = true)
-    public ApplicationResponse getApplicationForUser(
-            UUID userId,
-            UUID applicationId) {
+        @Transactional(readOnly = true)
+        public List<ApplicationResponse> getApplicationsForUser(UUID userId) {
+                return applicationRepository
+                                .findByUserIdOrderByCreatedAtDesc(userId)
+                                .stream()
+                                .map(this::toResponse)
+                                .toList();
+        }
 
-        Application application = applicationRepository
-                .findByIdAndUserId(applicationId, userId)
-                .orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+        @Transactional(readOnly = true)
+        public List<ChecklistItemResponse> getChecklistForUser(
+                        UUID userId,
+                        UUID applicationId) {
 
-        return toResponse(application);
-    }
+                applicationRepository
+                                .findByIdAndUserId(applicationId, userId)
+                                .orElseThrow(
+                                                () -> new ApplicationNotFoundException(
+                                                                applicationId));
 
-    @Transactional
-    public ApplicationResponse update(
-            UUID userId,
-            UUID applicationId,
-            UpdateApplicationRequest request) {
+                return checklistRepository
+                                .findByApplicationIdOrderByRequirementTitleAsc(
+                                                applicationId)
+                                .stream()
+                                .map(this::toChecklistItemResponse)
+                                .toList();
+        }
 
-        Application application = applicationRepository
-                .findByIdAndUserId(applicationId, userId)
-                .orElseThrow(
-                        () -> new ApplicationNotFoundException(applicationId));
+        @Transactional(readOnly = true)
+        public ApplicationResponse getApplicationForUser(
+                        UUID userId,
+                        UUID applicationId) {
 
-        application.changeStatus(request.status());
-        application.updateCompleteness(request.completeness());
+                Application application = applicationRepository
+                                .findByIdAndUserId(applicationId, userId)
+                                .orElseThrow(() -> new ApplicationNotFoundException(applicationId));
 
-        Application savedApplication = applicationRepository.saveAndFlush(application);
+                return toResponse(application);
+        }
 
-        return toResponse(savedApplication);
-    }
+        @Transactional
+        public ApplicationResponse update(
+                        UUID userId,
+                        UUID applicationId,
+                        UpdateApplicationRequest request) {
 
-    private ApplicationResponse toResponse(Application application) {
-        ProcessDefinition process = application.getProcess();
+                Application application = applicationRepository
+                                .findByIdAndUserId(applicationId, userId)
+                                .orElseThrow(
+                                                () -> new ApplicationNotFoundException(applicationId));
 
-        return new ApplicationResponse(
-                application.getId(),
-                process.getId(),
-                process.getCode(),
-                process.getTitle(),
-                application.getStatus(),
-                application.getCompleteness(),
-                application.getCreatedAt(),
-                application.getUpdatedAt());
-    }
+                application.changeStatus(request.status());
 
-    private ChecklistItemResponse toChecklistItemResponse(
-            ApplicationChecklistItem item) {
+                Application savedApplication = applicationRepository.saveAndFlush(application);
 
-        RequirementDefinition requirement =
-                item.getRequirement();
+                return toResponse(savedApplication);
+        }
 
-        return new ChecklistItemResponse(
-                item.getId(),
-                requirement.getId(),
-                requirement.getCode(),
-                requirement.getTitle(),
-                requirement.isRequired(),
-                item.isCompleted());
-    }
+        @Transactional
+        public ChecklistItemResponse updateChecklistItem(
+                        UUID userId,
+                        UUID checklistItemId,
+                        UpdateChecklistItemRequest request) {
+
+                ApplicationChecklistItem checklistItem = checklistRepository
+                                .findByIdAndApplicationUserId(
+                                                checklistItemId,
+                                                userId)
+                                .orElseThrow(
+                                                () -> new ChecklistItemNotFoundException(
+                                                                checklistItemId));
+
+                checklistItem.updateCompleted(request.completed());
+                checklistRepository.saveAndFlush(checklistItem);
+
+                Application application = checklistItem.getApplication();
+
+                List<ApplicationChecklistItem> checklistItems = checklistRepository
+                                .findByApplicationIdOrderByRequirementTitleAsc(
+                                                application.getId());
+
+                int completeness = calculateCompleteness(checklistItems);
+
+                application.updateCompleteness(completeness);
+                applicationRepository.saveAndFlush(application);
+
+                return toChecklistItemResponse(checklistItem);
+        }
+
+        private int calculateCompleteness(
+                        List<ApplicationChecklistItem> checklistItems) {
+
+                long requiredCount = checklistItems.stream()
+                                .filter(item -> item.getRequirement().isRequired())
+                                .count();
+
+                if (requiredCount == 0) {
+                        return 100;
+                }
+
+                long completedRequiredCount = checklistItems.stream()
+                                .filter(item -> item.getRequirement().isRequired())
+                                .filter(ApplicationChecklistItem::isCompleted)
+                                .count();
+
+                return (int) Math.round(
+                                completedRequiredCount * 100.0 / requiredCount);
+        }
+
+        private ApplicationResponse toResponse(Application application) {
+                ProcessDefinition process = application.getProcess();
+
+                return new ApplicationResponse(
+                                application.getId(),
+                                process.getId(),
+                                process.getCode(),
+                                process.getTitle(),
+                                application.getStatus(),
+                                application.getCompleteness(),
+                                application.getCreatedAt(),
+                                application.getUpdatedAt());
+        }
+
+        private ChecklistItemResponse toChecklistItemResponse(
+                        ApplicationChecklistItem item) {
+
+                RequirementDefinition requirement = item.getRequirement();
+
+                return new ChecklistItemResponse(
+                                item.getId(),
+                                requirement.getId(),
+                                requirement.getCode(),
+                                requirement.getTitle(),
+                                requirement.isRequired(),
+                                item.isCompleted());
+        }
 }
