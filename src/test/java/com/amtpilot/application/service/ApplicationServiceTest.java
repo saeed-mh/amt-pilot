@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amtpilot.application.dto.ApplicationResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
+import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ProcessDefinition;
@@ -274,5 +275,82 @@ class ApplicationServiceTest {
 
                 verify(applicationRepository)
                                 .findByIdAndUserId(applicationId, userId);
+        }
+
+        @Test
+        void updatesOwnedApplication() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+                Instant updatedAt = Instant.parse("2026-09-06T10:00:00Z");
+
+                Application application = org.mockito.Mockito.mock(Application.class);
+                ProcessDefinition process = org.mockito.Mockito.mock(ProcessDefinition.class);
+
+                UpdateApplicationRequest request = new UpdateApplicationRequest(
+                                ApplicationStatus.ACTION_REQUIRED,
+                                40);
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.of(application));
+
+                when(applicationRepository.saveAndFlush(application))
+                                .thenReturn(application);
+
+                when(application.getId()).thenReturn(applicationId);
+                when(application.getProcess()).thenReturn(process);
+                when(application.getStatus())
+                                .thenReturn(ApplicationStatus.ACTION_REQUIRED);
+                when(application.getCompleteness()).thenReturn((short) 40);
+                when(application.getCreatedAt()).thenReturn(createdAt);
+                when(application.getUpdatedAt()).thenReturn(updatedAt);
+
+                when(process.getId()).thenReturn(processId);
+                when(process.getCode()).thenReturn("ADDRESS_REGISTRATION");
+                when(process.getTitle()).thenReturn("Address Registration");
+
+                ApplicationResponse result = applicationService.update(
+                                userId,
+                                applicationId,
+                                request);
+
+                assertEquals(
+                                ApplicationStatus.ACTION_REQUIRED,
+                                result.status());
+                assertEquals(40, result.completeness());
+
+                verify(application)
+                                .changeStatus(ApplicationStatus.ACTION_REQUIRED);
+                verify(application).updateCompleteness(40);
+                verify(applicationRepository).saveAndFlush(application);
+        }
+
+        @Test
+        void rejectsUpdatingApplicationNotOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                UpdateApplicationRequest request = new UpdateApplicationRequest(
+                                ApplicationStatus.ACTION_REQUIRED,
+                                40);
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.empty());
+
+                assertThrows(
+                                ApplicationNotFoundException.class,
+                                () -> applicationService.update(
+                                                userId,
+                                                applicationId,
+                                                request));
+
+                verify(applicationRepository, never())
+                                .saveAndFlush(any(Application.class));
         }
 }

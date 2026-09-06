@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.amtpilot.application.dto.ApplicationResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
+import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.service.ApplicationService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.enums.ApplicationStatus;
@@ -119,5 +120,60 @@ class ApplicationControllerTest {
 
                 verify(applicationService)
                                 .getApplicationsForUser(userId);
+        }
+
+        @Test
+        void updatesApplicationForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+                Instant updatedAt = Instant.parse("2026-09-06T10:00:00Z");
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                UpdateApplicationRequest request = new UpdateApplicationRequest(
+                                ApplicationStatus.ACTION_REQUIRED,
+                                40);
+
+                ApplicationResponse updatedApplication = new ApplicationResponse(
+                                applicationId,
+                                processId,
+                                "ADDRESS_REGISTRATION",
+                                "Address Registration",
+                                ApplicationStatus.ACTION_REQUIRED,
+                                40,
+                                createdAt,
+                                updatedAt);
+
+                when(applicationService.update(
+                                userId,
+                                applicationId,
+                                request))
+                                .thenReturn(updatedApplication);
+
+                ResponseEntity<ApiResponse<ApplicationResponse>> response = applicationController.updateApplication(
+                                jwt,
+                                applicationId,
+                                request,
+                                "trace-789");
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.OK);
+
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .isEqualTo(updatedApplication);
+                assertThat(response.getBody().error()).isNull();
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-789");
+
+                verify(applicationService).update(
+                                userId,
+                                applicationId,
+                                request);
         }
 }

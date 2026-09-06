@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.amtpilot.application.dto.ApplicationResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
+import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ProcessDefinition;
@@ -75,6 +76,25 @@ public class ApplicationService {
                 .orElseThrow(() -> new ApplicationNotFoundException(applicationId));
 
         return toResponse(application);
+    }
+
+    @Transactional
+    public ApplicationResponse update(
+            UUID userId,
+            UUID applicationId,
+            UpdateApplicationRequest request) {
+
+        Application application = applicationRepository
+                .findByIdAndUserId(applicationId, userId)
+                .orElseThrow(
+                        () -> new ApplicationNotFoundException(applicationId));
+
+        application.changeStatus(request.status());
+        application.updateCompleteness(request.completeness());
+
+        Application savedApplication = applicationRepository.saveAndFlush(application);
+
+        return toResponse(savedApplication);
     }
 
     private ApplicationResponse toResponse(Application application) {
