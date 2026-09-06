@@ -3,7 +3,9 @@ package com.amtpilot.common.web;
 import java.util.UUID;
 
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
+import com.amtpilot.application.exception.DocumentStorageException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
+import com.amtpilot.application.exception.InvalidDocumentException;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.user.exception.UserNotFoundException;
 import jakarta.validation.Valid;
@@ -31,155 +33,207 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class GlobalExceptionHandlerTest {
 
-    private static final UUID CHECKLIST_ITEM_ID =
-            UUID.fromString(
-                "33333333-3333-3333-3333-333333333333");
+        private static final UUID CHECKLIST_ITEM_ID = UUID.fromString(
+                        "33333333-3333-3333-3333-333333333333");
 
-    private MockMvc mockMvc;
+        private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new TestController())
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .addFilters(new TraceIdFilter())
-                .build();
-    }
-
-    @Test
-    void returnsMalformedJsonError() throws Exception {
-        MvcResult result = mockMvc.perform(post("/test/validation")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":"))
-                .andExpect(status().isBadRequest())
-                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("MALFORMED_JSON"))
-                .andExpect(jsonPath("$.error.message")
-                        .value("Request body contains invalid JSON"))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    @Test
-    void returnsStructuredValidationError() throws Exception {
-        MvcResult result = mockMvc.perform(post("/test/validation")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.error.fieldErrors.name").value("must not be blank"))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    @Test
-    void hidesUnexpectedExceptionDetails() throws Exception {
-        MvcResult result = mockMvc.perform(get("/test/failure"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"))
-                .andExpect(jsonPath("$.error.message").value("An unexpected error occurred"))
-                .andExpect(content().string(not(containsString("Sensitive internal detail"))))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    @Test
-    void returnsUserNotFoundError() throws Exception {
-        MvcResult result = mockMvc.perform(get("/test/user-not-found"))
-                .andExpect(status().isNotFound())
-                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("USER_NOT_FOUND"))
-                .andExpect(jsonPath("$.error.message").value("User not found"))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    @Test
-    void returnsInvalidStatusTransitionError() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/test/invalid-status-transition"))
-                .andExpect(status().isConflict())
-                .andExpect(header().exists(
-                        TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code")
-                        .value("INVALID_STATUS_TRANSITION"))
-                .andExpect(jsonPath("$.error.message")
-                        .value(
-                                "Cannot change application status "
-                                        + "from DRAFT to COMPLETED"))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    @Test
-    void returnsChecklistItemNotFoundError() throws Exception {
-        MvcResult result = mockMvc.perform(
-                get("/test/checklist-item-not-found"))
-                .andExpect(status().isNotFound())
-                .andExpect(header().exists(
-                        TraceIdFilter.TRACE_ID_HEADER))
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code")
-                        .value("CHECKLIST_ITEM_NOT_FOUND"))
-                .andExpect(jsonPath("$.error.message")
-                        .value(
-                                "Checklist item not found: "
-                                        + CHECKLIST_ITEM_ID))
-                .andReturn();
-
-        assertTraceIdMatchesResponseHeader(result);
-    }
-
-    private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
-        String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
-        assertThat(traceId).isNotBlank();
-        assertThat(result.getResponse().getContentAsString())
-                .contains("\"traceId\":\"" + traceId + "\"");
-    }
-
-    @RestController
-    private static class TestController {
-
-        @PostMapping("/test/validation")
-        void validate(@Valid @RequestBody TestRequest request) {
+        @BeforeEach
+        void setUp() {
+                mockMvc = MockMvcBuilders
+                                .standaloneSetup(new TestController())
+                                .setControllerAdvice(new GlobalExceptionHandler())
+                                .addFilters(new TraceIdFilter())
+                                .build();
         }
 
-        @GetMapping("/test/failure")
-        void fail() {
-            throw new IllegalStateException("Sensitive internal detail");
+        @Test
+        void returnsMalformedJsonError() throws Exception {
+                MvcResult result = mockMvc.perform(post("/test/validation")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code").value("MALFORMED_JSON"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value("Request body contains invalid JSON"))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
         }
 
-        @GetMapping("/test/user-not-found")
-        void userNotFound() {
-            throw new UserNotFoundException();
+        @Test
+        void returnsStructuredValidationError() throws Exception {
+                MvcResult result = mockMvc.perform(post("/test/validation")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"))
+                                .andExpect(jsonPath("$.error.fieldErrors.name").value("must not be blank"))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
         }
 
-        @GetMapping("/test/invalid-status-transition")
-        void invalidStatusTransition() {
-            throw new InvalidApplicationStatusTransitionException(
-                    ApplicationStatus.DRAFT,
-                    ApplicationStatus.COMPLETED);
+        @Test
+        void hidesUnexpectedExceptionDetails() throws Exception {
+                MvcResult result = mockMvc.perform(get("/test/failure"))
+                                .andExpect(status().isInternalServerError())
+                                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"))
+                                .andExpect(jsonPath("$.error.message").value("An unexpected error occurred"))
+                                .andExpect(content().string(not(containsString("Sensitive internal detail"))))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
         }
 
-        @GetMapping("/test/checklist-item-not-found")
-        void checklistItemNotFound() {
-            throw new ChecklistItemNotFoundException(
-                    CHECKLIST_ITEM_ID);
-        }
-    }
+        @Test
+        void returnsUserNotFoundError() throws Exception {
+                MvcResult result = mockMvc.perform(get("/test/user-not-found"))
+                                .andExpect(status().isNotFound())
+                                .andExpect(header().exists(TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code").value("USER_NOT_FOUND"))
+                                .andExpect(jsonPath("$.error.message").value("User not found"))
+                                .andReturn();
 
-    private record TestRequest(@NotBlank String name) {
-    }
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
+        void returnsInvalidStatusTransitionError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/invalid-status-transition"))
+                                .andExpect(status().isConflict())
+                                .andExpect(header().exists(
+                                                TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("INVALID_STATUS_TRANSITION"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "Cannot change application status "
+                                                                                + "from DRAFT to COMPLETED"))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
+        void returnsChecklistItemNotFoundError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/checklist-item-not-found"))
+                                .andExpect(status().isNotFound())
+                                .andExpect(header().exists(
+                                                TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("CHECKLIST_ITEM_NOT_FOUND"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "Checklist item not found: "
+                                                                                + CHECKLIST_ITEM_ID))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
+        void returnsInvalidDocumentError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/invalid-document"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(header().exists(
+                                                TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("INVALID_DOCUMENT"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value("Only PDF documents are allowed"))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
+        void hidesDocumentStorageFailureDetails()
+                        throws Exception {
+
+                MvcResult result = mockMvc.perform(
+                                get("/test/document-storage-failure"))
+                                .andExpect(status().isInternalServerError())
+                                .andExpect(header().exists(
+                                                TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("DOCUMENT_STORAGE_ERROR"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "Document storage operation failed"))
+                                .andExpect(content().string(
+                                                not(containsString(
+                                                                "Sensitive storage detail"))))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
+                String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
+                assertThat(traceId).isNotBlank();
+                assertThat(result.getResponse().getContentAsString())
+                                .contains("\"traceId\":\"" + traceId + "\"");
+        }
+
+        @RestController
+        private static class TestController {
+
+                @PostMapping("/test/validation")
+                void validate(@Valid @RequestBody TestRequest request) {
+                }
+
+                @GetMapping("/test/failure")
+                void fail() {
+                        throw new IllegalStateException("Sensitive internal detail");
+                }
+
+                @GetMapping("/test/user-not-found")
+                void userNotFound() {
+                        throw new UserNotFoundException();
+                }
+
+                @GetMapping("/test/invalid-status-transition")
+                void invalidStatusTransition() {
+                        throw new InvalidApplicationStatusTransitionException(
+                                        ApplicationStatus.DRAFT,
+                                        ApplicationStatus.COMPLETED);
+                }
+
+                @GetMapping("/test/checklist-item-not-found")
+                void checklistItemNotFound() {
+                        throw new ChecklistItemNotFoundException(
+                                        CHECKLIST_ITEM_ID);
+                }
+
+                @GetMapping("/test/invalid-document")
+                void invalidDocument() {
+                        throw new InvalidDocumentException(
+                                        "Only PDF documents are allowed");
+                }
+
+                @GetMapping("/test/document-storage-failure")
+                void documentStorageFailure() {
+                        throw new DocumentStorageException(
+                                        "Sensitive storage detail",
+                                        new IllegalStateException("Disk failure"));
+                }
+        }
+
+        private record TestRequest(@NotBlank String name) {
+        }
 }

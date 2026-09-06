@@ -16,7 +16,9 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
+import com.amtpilot.application.exception.DocumentStorageException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
+import com.amtpilot.application.exception.InvalidDocumentException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.user.exception.UserNotFoundException;
@@ -154,12 +156,50 @@ public class GlobalExceptionHandler {
                         HttpServletRequest request) {
 
                 ApiError error = new ApiError(
-                        "CHECKLIST_ITEM_NOT_FOUND",
-                        exception.getMessage(),
-                        Map.of());
+                                "CHECKLIST_ITEM_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
 
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(ApiResponse.failure(error, traceId(request)));
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(InvalidDocumentException.class)
+        ResponseEntity<ApiResponse<Void>> handleInvalidDocument(
+                        InvalidDocumentException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "INVALID_DOCUMENT",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.badRequest()
+                                .body(ApiResponse.failure(
+                                                error,
+                                                traceId(request)));
+        }
+
+        @ExceptionHandler(DocumentStorageException.class)
+        ResponseEntity<ApiResponse<Void>> handleDocumentStorage(
+                        DocumentStorageException exception,
+                        HttpServletRequest request) {
+
+                String traceId = traceId(request);
+
+                log.error(
+                                "Document storage failure (traceId={})",
+                                traceId,
+                                exception);
+
+                ApiError error = new ApiError(
+                                "DOCUMENT_STORAGE_ERROR",
+                                "Document storage operation failed",
+                                Map.of());
+
+                return ResponseEntity
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(ApiResponse.failure(error, traceId));
         }
 
         @ExceptionHandler(Exception.class)
