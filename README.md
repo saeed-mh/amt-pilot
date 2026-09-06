@@ -1,72 +1,51 @@
 # AmtPilot
 
-AmtPilot is a portfolio-quality Spring Boot backend that helps users understand and track selected German administrative processes. The MVP is intentionally limited to Dortmund and only returns definitive requirements when they are backed by curated official sources.
+I am building AmtPilot as a learning and portfolio project. The goal is to help users understand German administrative processes, see their official requirements, and track their own applications. For now, the available sample data is focused on Dortmund.
 
-> AmtPilot is an educational project and does not provide legal advice.
+> This is an educational project and does not provide legal advice.
 
-## Current milestone
+## Current status
 
-Milestone 0 establishes the project foundation:
+**Last updated: 6 September 2026**
 
-- Spring Boot modular-monolith skeleton
-- Spring Security with secure-by-default routes
-- PostgreSQL with pgvector
-- Flyway-owned schema
-- Actuator health probes
-- OpenAPI/Swagger UI
-- Testcontainers migration test
-- GitHub Actions CI
+The backend MVP is in progress. At the moment, it supports:
 
-Business features such as accounts, supported processes, and applications are implemented in Milestone 1. AI is intentionally deferred until the deterministic domain and API work without it.
+- User registration and login with JWT authentication
+- Viewing and updating a user profile
+- Browsing authorities, processes, and official requirements
+- Creating, listing, viewing, and updating applications
+- Validation, consistent error responses, and request trace IDs
+- PostgreSQL, Flyway migrations, Swagger UI, and automated tests
 
-## Prerequisites
+The current test suite has **52 passing tests**, including unit, controller, migration, and repository integration tests.
 
-- Java 21 or newer
-- Docker Desktop with Docker Compose
+Next, I plan to add better application progress tracking, more curated process data, and later a simple frontend. The LLM feature will be added after the main workflow is stable.
 
 ## Run locally
+
+Requirements: Java 21 or newer and Docker Desktop.
 
 ```bash
 docker compose up -d postgres
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell, use `./mvnw.cmd spring-boot:run`.
+On Windows, use `./mvnw.cmd spring-boot:run`. Set `JWT_SECRET` to a value with at least 32 characters before starting the application.
 
-Useful URLs:
+Useful links:
 
-- Health: <http://localhost:8080/actuator/health>
+- API home: <http://localhost:8080/>
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
-- OpenAPI JSON: <http://localhost:8080/v3/api-docs>
+- Health check: <http://localhost:8080/actuator/health>
 
-Stop the database with:
-
-```bash
-docker compose down
-```
-
-The named database volume is preserved. Use `docker compose down --volumes` only when you intentionally want to delete local database data.
-
-## Test
+Run the tests with:
 
 ```bash
-./mvnw verify
+./mvnw test
 ```
 
-The fast unit test always runs. The PostgreSQL migration integration test runs when Docker is available and is skipped otherwise.
+The PostgreSQL integration tests require Docker to be running.
 
-## Configuration
+## Learning notes
 
-Local defaults are development-only and can be overridden with environment variables:
-
-| Variable | Default |
-| --- | --- |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/amtpilot` |
-| `DB_USERNAME` | `amtpilot` |
-| `DB_PASSWORD` | `amtpilot` |
-
-Production secrets must come from environment variables or a secret manager and must never be committed.
-
-## Learning roadmap
-
-See [docs/learning-roadmap.md](docs/learning-roadmap.md) for the implementation order and the reason behind each milestone.
+The development order and short explanations are available in [docs/learning-roadmap.md](docs/learning-roadmap.md).
