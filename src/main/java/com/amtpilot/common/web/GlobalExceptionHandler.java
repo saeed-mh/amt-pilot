@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.amtpilot.application.exception.ApplicationNotFoundException;
+import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.user.exception.UserNotFoundException;
@@ -129,6 +130,20 @@ public class GlobalExceptionHandler {
                                 Map.of());
 
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(InvalidApplicationStatusTransitionException.class)
+        ResponseEntity<ApiResponse<Void>> handleInvalidStatusTransition(
+                        InvalidApplicationStatusTransitionException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "INVALID_STATUS_TRANSITION",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .body(ApiResponse.failure(error, traceId(request)));
         }
 

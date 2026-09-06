@@ -1,5 +1,7 @@
 package com.amtpilot.common.web;
 
+import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
+import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.user.exception.UserNotFoundException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -95,6 +97,25 @@ class GlobalExceptionHandlerTest {
         assertTraceIdMatchesResponseHeader(result);
     }
 
+    @Test
+    void returnsInvalidStatusTransitionError() throws Exception {
+        MvcResult result = mockMvc.perform(
+                get("/test/invalid-status-transition"))
+                .andExpect(status().isConflict())
+                .andExpect(header().exists(
+                        TraceIdFilter.TRACE_ID_HEADER))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code")
+                        .value("INVALID_STATUS_TRANSITION"))
+                .andExpect(jsonPath("$.error.message")
+                        .value(
+                                "Cannot change application status "
+                                        + "from DRAFT to COMPLETED"))
+                .andReturn();
+
+        assertTraceIdMatchesResponseHeader(result);
+    }
+
     private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
         String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
         assertThat(traceId).isNotBlank();
@@ -117,6 +138,13 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/user-not-found")
         void userNotFound() {
             throw new UserNotFoundException();
+        }
+
+        @GetMapping("/test/invalid-status-transition")
+        void invalidStatusTransition() {
+            throw new InvalidApplicationStatusTransitionException(
+                    ApplicationStatus.DRAFT,
+                    ApplicationStatus.COMPLETED);
         }
     }
 

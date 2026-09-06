@@ -87,7 +87,11 @@ class ApplicationRepositoryIntegrationTest {
         Application minaResidenceApplication = new Application(mina, residenceProcess);
 
         minaResidenceApplication.changeStatus(
+                ApplicationStatus.ANALYZING);
+
+        minaResidenceApplication.changeStatus(
                 ApplicationStatus.ACTION_REQUIRED);
+
         minaResidenceApplication.updateCompleteness(50);
 
         Application minaAddressApplication = new Application(mina, addressProcess);

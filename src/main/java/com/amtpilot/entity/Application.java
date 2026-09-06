@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
 import com.amtpilot.enums.ApplicationStatus;
 
 import jakarta.persistence.Column;
@@ -87,8 +88,14 @@ public class Application {
         return updatedAt;
     }
 
-    public void changeStatus(ApplicationStatus status) {
-        this.status = status;
+    public void changeStatus(ApplicationStatus newStatus) {
+        if (!status.canTransitionTo(newStatus)) {
+            throw new InvalidApplicationStatusTransitionException(
+                    status,
+                    newStatus);
+        }
+
+        this.status = newStatus;
     }
 
     public void updateCompleteness(int completeness) {
