@@ -6,7 +6,7 @@ I am building AmtPilot as a learning and portfolio project. The goal is to help 
 
 ## Current status
 
-**Last updated: 6 September 2026**
+**Last updated: 7 September 2026**
 
 The backend MVP is in progress. At the moment, it supports:
 
@@ -14,12 +14,14 @@ The backend MVP is in progress. At the moment, it supports:
 - Viewing and updating a user profile
 - Browsing authorities, processes, and official requirements
 - Creating, listing, viewing, and updating applications
+- Application checklists with automatic completeness calculation
+- Local PDF storage with validation and ownership-safe document services
 - Validation, consistent error responses, and request trace IDs
 - PostgreSQL, Flyway migrations, Swagger UI, and automated tests
 
-The current test suite has **52 passing tests**, including unit, controller, migration, and repository integration tests.
+The current test suite has **77 passing tests**, including unit, controller, migration, and repository integration tests.
 
-Next, I plan to add better application progress tracking, more curated process data, and later a simple frontend. The LLM feature will be added after the main workflow is stable.
+Next, I plan to expose the document upload and download endpoints, add PDF text extraction, and then start the first AI feature. A simple frontend will come after the main backend workflow is ready.
 
 ## Run locally
 
@@ -30,7 +32,7 @@ docker compose up -d postgres
 ./mvnw spring-boot:run
 ```
 
-On Windows, use `./mvnw.cmd spring-boot:run`. Set `JWT_SECRET` to a value with at least 32 characters before starting the application.
+On Windows, use `./mvnw.cmd spring-boot:run`. Set `JWT_SECRET` to a value with at least 32 characters before starting the application. Uploaded files are stored in `./uploads` by default, or in the directory configured with `UPLOAD_DIR`.
 
 Useful links:
 
