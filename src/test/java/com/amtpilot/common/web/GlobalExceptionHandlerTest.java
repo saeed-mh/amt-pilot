@@ -1,5 +1,8 @@
 package com.amtpilot.common.web;
 
+import java.util.UUID;
+
+import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.user.exception.UserNotFoundException;
@@ -27,6 +30,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class GlobalExceptionHandlerTest {
+
+    private static final UUID CHECKLIST_ITEM_ID =
+            UUID.fromString(
+                "33333333-3333-3333-3333-333333333333");
 
     private MockMvc mockMvc;
 
@@ -116,6 +123,25 @@ class GlobalExceptionHandlerTest {
         assertTraceIdMatchesResponseHeader(result);
     }
 
+    @Test
+    void returnsChecklistItemNotFoundError() throws Exception {
+        MvcResult result = mockMvc.perform(
+                get("/test/checklist-item-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().exists(
+                        TraceIdFilter.TRACE_ID_HEADER))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code")
+                        .value("CHECKLIST_ITEM_NOT_FOUND"))
+                .andExpect(jsonPath("$.error.message")
+                        .value(
+                                "Checklist item not found: "
+                                        + CHECKLIST_ITEM_ID))
+                .andReturn();
+
+        assertTraceIdMatchesResponseHeader(result);
+    }
+
     private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
         String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
         assertThat(traceId).isNotBlank();
@@ -145,6 +171,12 @@ class GlobalExceptionHandlerTest {
             throw new InvalidApplicationStatusTransitionException(
                     ApplicationStatus.DRAFT,
                     ApplicationStatus.COMPLETED);
+        }
+
+        @GetMapping("/test/checklist-item-not-found")
+        void checklistItemNotFound() {
+            throw new ChecklistItemNotFoundException(
+                    CHECKLIST_ITEM_ID);
         }
     }
 

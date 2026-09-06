@@ -13,19 +13,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amtpilot.application.dto.ApplicationResponse;
+import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
+import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ProcessDefinition;
+import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.process.exception.ProcessNotFoundException;
+import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationRepository;
 import com.amtpilot.repository.ProcessDefinitionRepository;
+import com.amtpilot.repository.RequirementDefinitionRepository;
 import com.amtpilot.repository.UserRepository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +51,12 @@ class ApplicationServiceTest {
         @Mock
         private ProcessDefinitionRepository processRepository;
 
+        @Mock
+        private RequirementDefinitionRepository requirementRepository;
+
+        @Mock
+        private ApplicationChecklistItemRepository checklistRepository;
+
         @InjectMocks
         private ApplicationService applicationService;
 
@@ -54,49 +66,97 @@ class ApplicationServiceTest {
                 UUID processId = UUID.randomUUID();
 
                 User user = new User(
-                                "student@example.com",
-                                "hashed-password");
+                        "student@example.com",
+                        "hashed-password");
 
-                ProcessDefinition process = org.mockito.Mockito.mock(ProcessDefinition.class);
+                ProcessDefinition process =
+                        org.mockito.Mockito.mock(ProcessDefinition.class);
+
+                RequirementDefinition passport =
+                        org.mockito.Mockito.mock(RequirementDefinition.class);
+
+                RequirementDefinition registrationForm =
+                        org.mockito.Mockito.mock(RequirementDefinition.class);
 
                 when(userRepository.findById(userId))
-                                .thenReturn(Optional.of(user));
+                        .thenReturn(Optional.of(user));
 
                 when(processRepository.findById(processId))
-                                .thenReturn(Optional.of(process));
+                        .thenReturn(Optional.of(process));
 
                 when(process.isActive()).thenReturn(true);
                 when(process.getId()).thenReturn(processId);
                 when(process.getCode())
-                                .thenReturn("DO_ADDRESS_REGISTRATION");
+                        .thenReturn("DO_ADDRESS_REGISTRATION");
                 when(process.getTitle())
-                                .thenReturn("Address Registration");
+                        .thenReturn("Address Registration");
 
-                when(applicationRepository.saveAndFlush(any(Application.class)))
-                                .thenAnswer(invocation -> invocation.getArgument(0));
+                when(requirementRepository
+                        .findByProcessIdOrderByTitleAsc(processId))
+                        .thenReturn(List.of(
+                                passport,
+                                registrationForm));
 
-                CreateApplicationRequest request = new CreateApplicationRequest(processId);
+                when(applicationRepository
+                        .saveAndFlush(any(Application.class)))
+                        .thenAnswer(invocation ->
+                                invocation.getArgument(0));
 
-                ApplicationResponse response = applicationService.create(userId, request);
+                CreateApplicationRequest request =
+                        new CreateApplicationRequest(processId);
+
+                ApplicationResponse response =
+                        applicationService.create(userId, request);
 
                 assertEquals(processId, response.processId());
                 assertEquals(
-                                "DO_ADDRESS_REGISTRATION",
-                                response.processCode());
+                        "DO_ADDRESS_REGISTRATION",
+                        response.processCode());
                 assertEquals(
-                                "Address Registration",
-                                response.processTitle());
+                        "Address Registration",
+                        response.processTitle());
                 assertEquals(ApplicationStatus.DRAFT, response.status());
                 assertEquals(0, response.completeness());
 
-                ArgumentCaptor<Application> captor = ArgumentCaptor.forClass(Application.class);
+                ArgumentCaptor<Application> applicationCaptor =
+                        ArgumentCaptor.forClass(Application.class);
 
-                verify(applicationRepository).saveAndFlush(captor.capture());
+                verify(applicationRepository)
+                        .saveAndFlush(applicationCaptor.capture());
 
-                Application savedApplication = captor.getValue();
+                Application savedApplication =
+                        applicationCaptor.getValue();
 
                 assertSame(user, savedApplication.getUser());
                 assertSame(process, savedApplication.getProcess());
+
+                @SuppressWarnings("unchecked")
+                ArgumentCaptor<List<ApplicationChecklistItem>> checklistCaptor =
+                        ArgumentCaptor.forClass(List.class);
+
+                verify(checklistRepository)
+                        .saveAll(checklistCaptor.capture());
+
+                List<ApplicationChecklistItem> checklistItems =
+                        checklistCaptor.getValue();
+
+                assertEquals(2, checklistItems.size());
+
+                assertSame(
+                        savedApplication,
+                        checklistItems.get(0).getApplication());
+                assertSame(
+                        passport,
+                        checklistItems.get(0).getRequirement());
+                assertFalse(checklistItems.get(0).isCompleted());
+
+                assertSame(
+                        savedApplication,
+                        checklistItems.get(1).getApplication());
+                assertSame(
+                        registrationForm,
+                        checklistItems.get(1).getRequirement());
+                assertFalse(checklistItems.get(1).isCompleted());
         }
 
         @Test
@@ -352,5 +412,90 @@ class ApplicationServiceTest {
 
                 verify(applicationRepository, never())
                                 .saveAndFlush(any(Application.class));
+        }
+
+        @Test
+        void returnsChecklistForOwnedApplication() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID checklistItemId = UUID.randomUUID();
+                UUID requirementId = UUID.randomUUID();
+
+                Application application =
+                        org.mockito.Mockito.mock(Application.class);
+
+                ApplicationChecklistItem checklistItem =
+                        org.mockito.Mockito.mock(
+                                ApplicationChecklistItem.class);
+
+                RequirementDefinition requirement =
+                        org.mockito.Mockito.mock(
+                                RequirementDefinition.class);
+
+                when(applicationRepository.findByIdAndUserId(
+                        applicationId,
+                        userId))
+                        .thenReturn(Optional.of(application));
+
+                when(checklistRepository
+                        .findByApplicationIdOrderByRequirementTitleAsc(
+                                applicationId))
+                        .thenReturn(List.of(checklistItem));
+
+                when(checklistItem.getId())
+                        .thenReturn(checklistItemId);
+                when(checklistItem.getRequirement())
+                        .thenReturn(requirement);
+                when(checklistItem.isCompleted())
+                        .thenReturn(true);
+
+                when(requirement.getId()).thenReturn(requirementId);
+                when(requirement.getCode()).thenReturn("PASSPORT");
+                when(requirement.getTitle()).thenReturn("Passport");
+                when(requirement.isRequired()).thenReturn(true);
+
+                List<ChecklistItemResponse> result =
+                        applicationService.getChecklistForUser(
+                                userId,
+                                applicationId);
+
+                ChecklistItemResponse expected =
+                        new ChecklistItemResponse(
+                                checklistItemId,
+                                requirementId,
+                                "PASSPORT",
+                                "Passport",
+                                true,
+                                true);
+
+                assertEquals(List.of(expected), result);
+
+                verify(applicationRepository)
+                        .findByIdAndUserId(applicationId, userId);
+
+                verify(checklistRepository)
+                        .findByApplicationIdOrderByRequirementTitleAsc(
+                                applicationId);
+        }
+
+        @Test
+        void rejectsChecklistForApplicationNotOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                when(applicationRepository.findByIdAndUserId(
+                        applicationId,
+                        userId))
+                        .thenReturn(Optional.empty());
+
+                assertThrows(
+                        ApplicationNotFoundException.class,
+                        () -> applicationService.getChecklistForUser(
+                                userId,
+                                applicationId));
+
+                verify(checklistRepository, never())
+                        .findByApplicationIdOrderByRequirementTitleAsc(
+                                applicationId);
         }
 }

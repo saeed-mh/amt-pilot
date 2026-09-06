@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.amtpilot.application.exception.ApplicationNotFoundException;
+import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
@@ -145,6 +146,20 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(ChecklistItemNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleChecklistItemNotFound(
+                        ChecklistItemNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                        "CHECKLIST_ITEM_NOT_FOUND",
+                        exception.getMessage(),
+                        Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.failure(error, traceId(request)));
         }
 
         @ExceptionHandler(Exception.class)

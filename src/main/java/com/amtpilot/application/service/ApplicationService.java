@@ -7,15 +7,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.amtpilot.application.dto.ApplicationResponse;
+import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
+import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ProcessDefinition;
+import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
 import com.amtpilot.process.exception.ProcessNotFoundException;
+import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationRepository;
 import com.amtpilot.repository.ProcessDefinitionRepository;
+import com.amtpilot.repository.RequirementDefinitionRepository;
 import com.amtpilot.repository.UserRepository;
 import com.amtpilot.user.exception.UserNotFoundException;
 
@@ -25,14 +30,20 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final UserRepository userRepository;
     private final ProcessDefinitionRepository processRepository;
+    private final RequirementDefinitionRepository requirementRepository;
+    private final ApplicationChecklistItemRepository checklistRepository;
 
     public ApplicationService(
             ApplicationRepository applicationRepository,
             UserRepository userRepository,
-            ProcessDefinitionRepository processRepository) {
+            ProcessDefinitionRepository processRepository,
+            RequirementDefinitionRepository requirementRepository,
+            ApplicationChecklistItemRepository checklistRepository) {
         this.applicationRepository = applicationRepository;
         this.userRepository = userRepository;
         this.processRepository = processRepository;
+        this.requirementRepository = requirementRepository;
+        this.checklistRepository = checklistRepository;
     }
 
     @Transactional
@@ -54,6 +65,20 @@ public class ApplicationService {
         Application application = new Application(user, process);
         Application savedApplication = applicationRepository.saveAndFlush(application);
 
+        List<RequirementDefinition> requirements =
+                requirementRepository
+                        .findByProcessIdOrderByTitleAsc(process.getId());
+
+        List<ApplicationChecklistItem> checklistItems =
+                requirements.stream()
+                        .map(requirement ->
+                                new ApplicationChecklistItem(
+                                        savedApplication,
+                                        requirement))
+                        .toList();
+
+        checklistRepository.saveAll(checklistItems);
+
         return toResponse(savedApplication);
     }
 
@@ -63,6 +88,25 @@ public class ApplicationService {
                 .findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChecklistItemResponse> getChecklistForUser(
+            UUID userId,
+            UUID applicationId) {
+
+        applicationRepository
+                .findByIdAndUserId(applicationId, userId)
+                .orElseThrow(
+                        () -> new ApplicationNotFoundException(
+                                applicationId));
+
+        return checklistRepository
+                .findByApplicationIdOrderByRequirementTitleAsc(
+                        applicationId)
+                .stream()
+                .map(this::toChecklistItemResponse)
                 .toList();
     }
 
@@ -109,5 +153,20 @@ public class ApplicationService {
                 application.getCompleteness(),
                 application.getCreatedAt(),
                 application.getUpdatedAt());
+    }
+
+    private ChecklistItemResponse toChecklistItemResponse(
+            ApplicationChecklistItem item) {
+
+        RequirementDefinition requirement =
+                item.getRequirement();
+
+        return new ChecklistItemResponse(
+                item.getId(),
+                requirement.getId(),
+                requirement.getCode(),
+                requirement.getTitle(),
+                requirement.isRequired(),
+                item.isCompleted());
     }
 }
