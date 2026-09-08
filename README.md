@@ -6,7 +6,7 @@ I am building AmtPilot as a learning and portfolio project. The goal is to help 
 
 ## Current status
 
-**Last updated: 7 September 2026**
+**Last updated: 8 September 2026**
 
 The MVP is in progress. At the moment, it supports:
 
@@ -18,11 +18,11 @@ The MVP is in progress. At the moment, it supports:
 - Uploading and listing PDF documents with validation and ownership checks
 - Validation, consistent error responses, and request trace IDs
 - PostgreSQL, Flyway migrations, Swagger UI, and automated tests
-- A Vue 3 frontend with a working signup flow
+- A Vue 3 frontend with signup, login, JWT persistence, a protected dashboard, and logout
 
 The backend test suite has **79 passing tests**, including unit, controller, migration, and repository integration tests. The frontend also passes its lint and production build checks.
 
-Next, I plan to add frontend login and protected pages, finish document downloading, add PDF text extraction, and then start the first AI feature.
+Next, I plan to connect protected frontend pages to the existing APIs, finish document downloading, add PDF text extraction, and then start the first AI feature.
 
 ## Run locally
 
