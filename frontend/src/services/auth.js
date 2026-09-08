@@ -9,3 +9,13 @@ export function registerUser(email, password) {
     }),
   })
 }
+
+export function loginUser(email, password) {
+  return apiRequest('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  })
+}
