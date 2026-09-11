@@ -5,3 +5,11 @@ export function getCurrentUser() {
     authenticated: true,
   })
 }
+
+export function updateCurrentUser(profile) {
+  return apiRequest('/api/v1/users/me', {
+    authenticated: true,
+    method: 'PATCH',
+    body: JSON.stringify(profile),
+  })
+}

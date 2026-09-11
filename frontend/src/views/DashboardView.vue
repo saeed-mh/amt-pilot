@@ -1,22 +1,64 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { getCurrentUser } from '@/services/user'
+import { getCurrentUser, updateCurrentUser } from '@/services/user'
 
 const router = useRouter()
 
 const user = ref(null)
 const isLoading = ref(true)
-const errorMessage = ref('')
+const isSaving = ref(false)
+const loadError = ref('')
+const saveError = ref('')
+const successMessage = ref('')
+const fieldErrors = ref({})
+
+const profileForm = reactive({
+  preferredLanguage: '',
+  city: '',
+  countryOfOrigin: '',
+  userType: '',
+  timezone: '',
+})
+
+function fillProfileForm(profile) {
+  profileForm.preferredLanguage = profile.preferredLanguage || ''
+  profileForm.city = profile.city || ''
+  profileForm.countryOfOrigin = profile.countryOfOrigin || ''
+  profileForm.userType = profile.userType || ''
+  profileForm.timezone = profile.timezone || ''
+}
 
 async function loadProfile() {
   try {
     user.value = await getCurrentUser()
+    fillProfileForm(user.value)
   } catch (error) {
-    errorMessage.value = error.message
+    loadError.value = error.message
   } finally {
     isLoading.value = false
+  }
+}
+
+async function saveProfile() {
+  isSaving.value = true
+  saveError.value = ''
+  successMessage.value = ''
+  fieldErrors.value = {}
+
+  try {
+    user.value = await updateCurrentUser({
+      ...profileForm,
+    })
+
+    fillProfileForm(user.value)
+    successMessage.value = 'Profile updated successfully.'
+  } catch (error) {
+    saveError.value = error.message
+    fieldErrors.value = error.fieldErrors || {}
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -42,44 +84,86 @@ onMounted(loadProfile)
         <h1>
           {{ user ? `Welcome, ${user.email}` : 'Welcome to AmtPilot' }}
         </h1>
-        <p>View your profile and continue with your administrative applications.</p>
+        <p>
+          Keep your profile up to date so AmtPilot can show relevant administrative information.
+        </p>
       </section>
 
       <p v-if="isLoading" class="status-message">Loading your profile...</p>
 
-      <p v-else-if="errorMessage" class="status-message error" role="alert">
-        {{ errorMessage }}
+      <p v-else-if="loadError" class="status-message error" role="alert">
+        {{ loadError }}
       </p>
 
       <section v-else-if="user" class="profile-card">
         <h2>Your profile</h2>
 
-        <dl class="profile-grid">
-          <div>
-            <dt>Email</dt>
-            <dd>{{ user.email }}</dd>
-          </div>
+        <form class="profile-form" @submit.prevent="saveProfile">
+          <label>
+            <span>Email</span>
+            <input :value="user.email" type="email" disabled />
+          </label>
 
-          <div>
-            <dt>City</dt>
-            <dd>{{ user.city || 'Not provided' }}</dd>
-          </div>
+          <label>
+            <span>Preferred language</span>
+            <input v-model="profileForm.preferredLanguage" maxlength="10" placeholder="en" />
+            <small v-if="fieldErrors.preferredLanguage">
+              {{ fieldErrors.preferredLanguage }}
+            </small>
+          </label>
 
-          <div>
-            <dt>Preferred language</dt>
-            <dd>{{ user.preferredLanguage }}</dd>
-          </div>
+          <label>
+            <span>City</span>
+            <input v-model="profileForm.city" maxlength="120" placeholder="Dortmund" />
+            <small v-if="fieldErrors.city">
+              {{ fieldErrors.city }}
+            </small>
+          </label>
 
-          <div>
-            <dt>Timezone</dt>
-            <dd>{{ user.timezone }}</dd>
-          </div>
+          <label>
+            <span>Country of origin</span>
+            <input
+              v-model="profileForm.countryOfOrigin"
+              maxlength="120"
+              placeholder="Your country of origin"
+            />
+            <small v-if="fieldErrors.countryOfOrigin">
+              {{ fieldErrors.countryOfOrigin }}
+            </small>
+          </label>
 
-          <div>
-            <dt>Role</dt>
-            <dd>{{ user.role }}</dd>
-          </div>
-        </dl>
+          <label>
+            <span>User type</span>
+            <input
+              v-model="profileForm.userType"
+              maxlength="40"
+              placeholder="Student, employee, family..."
+            />
+            <small v-if="fieldErrors.userType">
+              {{ fieldErrors.userType }}
+            </small>
+          </label>
+
+          <label>
+            <span>Timezone</span>
+            <input v-model="profileForm.timezone" maxlength="60" placeholder="Europe/Berlin" />
+            <small v-if="fieldErrors.timezone">
+              {{ fieldErrors.timezone }}
+            </small>
+          </label>
+
+          <p v-if="saveError" class="message error" role="alert">
+            {{ saveError }}
+          </p>
+
+          <p v-if="successMessage" class="message success" role="status">
+            {{ successMessage }}
+          </p>
+
+          <button class="save-button" type="submit" :disabled="isSaving">
+            {{ isSaving ? 'Saving...' : 'Save profile' }}
+          </button>
+        </form>
       </section>
     </section>
   </main>
@@ -116,7 +200,7 @@ header {
 }
 
 button {
-  padding: 9px 14px;
+  padding: 10px 16px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   background: #ffffff;
@@ -128,6 +212,11 @@ button {
 
 button:hover {
   background: #f9fafb;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .welcome,
@@ -162,18 +251,65 @@ h2 {
 }
 
 .welcome p:last-child {
-  max-width: 600px;
+  max-width: 640px;
   margin: 12px 0 0;
   color: #6b7280;
   line-height: 1.6;
 }
 
+.profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  font: inherit;
+}
+
+input:focus {
+  border-color: #2563eb;
+  outline: 3px solid rgb(37 99 235 / 12%);
+}
+
+input:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+small {
+  color: #b91c1c;
+}
+
+.status-message,
+.message {
+  padding: 14px;
+  border-radius: 8px;
+}
+
 .status-message {
   margin-top: 24px;
-  padding: 18px;
   background: #ffffff;
-  border-radius: 10px;
   color: #6b7280;
+}
+
+.message {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .error {
@@ -181,30 +317,21 @@ h2 {
   color: #b91c1c;
 }
 
-.profile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin: 24px 0 0;
+.success {
+  background: #ecfdf5;
+  color: #047857;
 }
 
-.profile-grid div {
-  padding: 18px;
-  background: #f9fafb;
-  border-radius: 10px;
+.save-button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
 }
 
-dt {
-  margin-bottom: 6px;
-  color: #6b7280;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-weight: 600;
+.save-button:hover {
+  background: #1d4ed8;
 }
 
 @media (max-width: 600px) {
@@ -218,7 +345,7 @@ dd {
     padding: 20px;
   }
 
-  .profile-grid {
+  .profile-form {
     grid-template-columns: 1fr;
   }
 }
