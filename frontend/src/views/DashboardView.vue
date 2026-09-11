@@ -2,6 +2,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import AuthorityList from '@/components/AuthorityList.vue'
+import ProcessList from '@/components/ProcessList.vue'
 import { getCurrentUser, updateCurrentUser } from '@/services/user'
 
 const router = useRouter()
@@ -165,6 +167,10 @@ onMounted(loadProfile)
           </button>
         </form>
       </section>
+
+      <ProcessList v-if="user" class="process-section" :city="user.city || 'Dortmund'" />
+
+      <AuthorityList v-if="user" class="authority-section" :city="user.city || 'Dortmund'" />
     </section>
   </main>
 </template>
@@ -226,6 +232,11 @@ button:disabled {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
+}
+
+.process-section,
+.authority-section {
+  margin-top: 24px;
 }
 
 .eyebrow {
