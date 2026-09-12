@@ -1,7 +1,10 @@
 <script setup>
 import { ref, watch } from 'vue'
 
+import { createApplication } from '@/services/application'
 import { getProcesses, getProcessRequirements } from '@/services/process'
+
+const emit = defineEmits(['application-created'])
 
 const props = defineProps({
   city: {
@@ -17,6 +20,9 @@ const selectedProcessId = ref(null)
 const requirements = ref([])
 const isLoadingRequirements = ref(false)
 const requirementsError = ref('')
+const creatingProcessId = ref(null)
+const applicationMessage = ref('')
+const applicationError = ref('')
 
 async function loadProcesses() {
   isLoading.value = true
@@ -24,6 +30,8 @@ async function loadProcesses() {
   selectedProcessId.value = null
   requirements.value = []
   requirementsError.value = ''
+  applicationMessage.value = ''
+  applicationError.value = ''
 
   try {
     processes.value = await getProcesses(props.city || 'Dortmund')
@@ -32,6 +40,22 @@ async function loadProcesses() {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
+  }
+}
+
+async function startApplication(process) {
+  creatingProcessId.value = process.id
+  applicationMessage.value = ''
+  applicationError.value = ''
+
+  try {
+    const application = await createApplication(process.id)
+    applicationMessage.value = `${process.title} application created successfully.`
+    emit('application-created', application)
+  } catch (error) {
+    applicationError.value = error.message
+  } finally {
+    creatingProcessId.value = null
   }
 }
 
@@ -69,6 +93,14 @@ watch(
     <h2>Available processes</h2>
     <p class="description">Administrative processes available in {{ city || 'Dortmund' }}.</p>
 
+    <p v-if="applicationMessage" class="feedback success" role="status">
+      {{ applicationMessage }}
+    </p>
+
+    <p v-if="applicationError" class="feedback error" role="alert">
+      {{ applicationError }}
+    </p>
+
     <p v-if="isLoading">Loading processes...</p>
     <p v-else-if="errorMessage" class="error" role="alert">
       {{ errorMessage }}
@@ -82,14 +114,25 @@ watch(
         <p>{{ process.domain }}</p>
         <small>Provided by {{ process.authorityName }}</small>
 
-        <button
-          class="requirements-button"
-          type="button"
-          :aria-expanded="selectedProcessId === process.id"
-          @click="toggleRequirements(process)"
-        >
-          {{ selectedProcessId === process.id ? 'Hide requirements' : 'View requirements' }}
-        </button>
+        <div class="process-actions">
+          <button
+            class="requirements-button"
+            type="button"
+            :aria-expanded="selectedProcessId === process.id"
+            @click="toggleRequirements(process)"
+          >
+            {{ selectedProcessId === process.id ? 'Hide requirements' : 'View requirements' }}
+          </button>
+
+          <button
+            class="start-button"
+            type="button"
+            :disabled="creatingProcessId !== null"
+            @click="startApplication(process)"
+          >
+            {{ creatingProcessId === process.id ? 'Creating...' : 'Start application' }}
+          </button>
+        </div>
 
         <div v-if="selectedProcessId === process.id" class="requirements">
           <p v-if="isLoadingRequirements">Loading requirements...</p>
@@ -166,20 +209,44 @@ watch(
   color: #64748b;
 }
 
-.requirements-button {
-  display: block;
+.process-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.requirements-button,
+.start-button {
   padding: 0.6rem 1rem;
-  border: 0;
+  border: 1px solid #2563eb;
   border-radius: 0.5rem;
-  background: #2563eb;
-  color: #ffffff;
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
+.requirements-button {
+  background: #ffffff;
+  color: #2563eb;
+}
+
 .requirements-button:hover {
+  background: #eff6ff;
+}
+
+.start-button {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.start-button:hover:not(:disabled) {
   background: #1d4ed8;
+}
+
+.start-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .requirements {
@@ -223,5 +290,19 @@ watch(
 
 .error {
   color: #b91c1c;
+}
+
+.feedback {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.feedback.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.feedback.error {
+  background: #fef2f2;
 }
 </style>

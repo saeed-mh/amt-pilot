@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import ApplicationList from '@/components/ApplicationList.vue'
 import AuthorityList from '@/components/AuthorityList.vue'
 import ProcessList from '@/components/ProcessList.vue'
 import { getCurrentUser, updateCurrentUser } from '@/services/user'
@@ -15,6 +16,7 @@ const loadError = ref('')
 const saveError = ref('')
 const successMessage = ref('')
 const fieldErrors = ref({})
+const applicationsVersion = ref(0)
 
 const profileForm = reactive({
   preferredLanguage: '',
@@ -67,6 +69,10 @@ async function saveProfile() {
 function logout() {
   localStorage.removeItem('amtpilot_access_token')
   router.push('/login')
+}
+
+function refreshApplications() {
+  applicationsVersion.value += 1
 }
 
 onMounted(loadProfile)
@@ -168,7 +174,14 @@ onMounted(loadProfile)
         </form>
       </section>
 
-      <ProcessList v-if="user" class="process-section" :city="user.city || 'Dortmund'" />
+      <ApplicationList v-if="user" :key="applicationsVersion" class="application-section" />
+
+      <ProcessList
+        v-if="user"
+        class="process-section"
+        :city="user.city || 'Dortmund'"
+        @application-created="refreshApplications"
+      />
 
       <AuthorityList v-if="user" class="authority-section" :city="user.city || 'Dortmund'" />
     </section>
@@ -234,6 +247,7 @@ button:disabled {
   border-radius: 12px;
 }
 
+.application-section,
 .process-section,
 .authority-section {
   margin-top: 24px;
