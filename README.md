@@ -6,7 +6,7 @@ I am building AmtPilot as a learning and portfolio project. The goal is to help 
 
 ## Current status
 
-**Last updated: 11 September 2026**
+**Last updated: 12 September 2026**
 
 The MVP is in progress. At the moment, it supports:
 
@@ -14,15 +14,15 @@ The MVP is in progress. At the moment, it supports:
 - Viewing and updating a user profile
 - Browsing authorities, processes, and official requirements
 - Creating, listing, viewing, and updating applications
-- Application checklists with automatic completeness calculation
+- Application checklists with required and optional items and automatic completeness calculation
 - Uploading and listing PDF documents with validation and ownership checks
 - Validation, consistent error responses, and request trace IDs
 - PostgreSQL, Flyway migrations, Swagger UI, and automated tests
-- A Vue 3 frontend with authentication, profile editing, authority and process lists, and process requirement viewing
+- A Vue 3 frontend with authentication, profile editing, authority and process browsing, application creation, and interactive checklists
 
-The backend test suite has **79 passing tests**, including unit, controller, migration, and repository integration tests. The frontend also passes its lint and production build checks.
+The backend test suite has **80 passing tests**, including unit, controller, migration, and repository integration tests. The frontend also passes its lint and production build checks.
 
-Next, I plan to connect applications and checklists to the frontend, finish document downloading, add PDF text extraction, and then start the first AI feature.
+Next, I plan to finish document downloading, add PDF text extraction, and then start the first AI feature.
 
 ## Run locally
 
