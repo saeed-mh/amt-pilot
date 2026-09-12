@@ -90,7 +90,7 @@ class ApplicationChecklistItemRepositoryIntegrationTest {
 
         ProcessDefinition process = new ProcessDefinition(
                 authority,
-                "ADDRESS_REGISTRATION",
+                "TEST_CHECKLIST_ADDRESS_REGISTRATION",
                 "Address Registration",
                 "Dortmund",
                 "REGISTRATION");

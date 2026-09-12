@@ -38,14 +38,14 @@ class AuthorityRepositoryIntegrationTest {
         Authority immigrationOffice = new Authority(
                 "Immigration Office",
                 "IMMIGRATION",
-                "Dortmund",
+                "Teststadt",
                 "https://example.com/immigration",
                 null);
 
         Authority citizensOffice = new Authority(
                 "Citizens Office",
                 "CITIZENS_SERVICE",
-                "Dortmund",
+                "Teststadt",
                 "https://example.com/citizens",
                 "https://example.com/citizens/contact");
 
@@ -60,7 +60,7 @@ class AuthorityRepositoryIntegrationTest {
                 List.of(immigrationOffice, citizensOffice, cologneOffice));
 
         List<Authority> result =
-                authorityRepository.findByCityIgnoreCaseOrderByNameAsc("dOrTmUnD");
+                authorityRepository.findByCityIgnoreCaseOrderByNameAsc("tEsTsTaDt");
 
         assertThat(result)
                 .extracting(Authority::getName)

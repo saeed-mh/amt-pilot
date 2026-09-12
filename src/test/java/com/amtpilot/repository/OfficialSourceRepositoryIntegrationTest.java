@@ -42,7 +42,7 @@ class OfficialSourceRepositoryIntegrationTest {
         Authority dortmundAuthority = new Authority(
                 "Dortmund Immigration Office",
                 "IMMIGRATION",
-                "Dortmund",
+                "Teststadt",
                 "https://example.com/dortmund",
                 null);
 
@@ -60,14 +60,14 @@ class OfficialSourceRepositoryIntegrationTest {
                 dortmundAuthority,
                 "https://example.com/dortmund/residence",
                 "Residence Permit",
-                "Dortmund",
+                "Teststadt",
                 "en");
 
         OfficialSource cityRegistration = new OfficialSource(
                 dortmundAuthority,
                 "https://example.com/dortmund/registration",
                 "City Registration",
-                "Dortmund",
+                "Teststadt",
                 "en");
 
         OfficialSource cologneSource = new OfficialSource(
@@ -82,7 +82,7 @@ class OfficialSourceRepositoryIntegrationTest {
 
         List<OfficialSource> result =
                 officialSourceRepository
-                        .findByCityIgnoreCaseOrderByTitleAsc("dOrTmUnD");
+                        .findByCityIgnoreCaseOrderByTitleAsc("tEsTsTaDt");
 
         assertThat(result)
                 .extracting(OfficialSource::getTitle)

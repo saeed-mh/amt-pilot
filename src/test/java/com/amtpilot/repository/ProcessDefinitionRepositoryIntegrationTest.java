@@ -44,7 +44,7 @@ class ProcessDefinitionRepositoryIntegrationTest {
         Authority dortmundAuthority = new Authority(
                 "Dortmund Immigration Office",
                 "IMMIGRATION",
-                "Dortmund",
+                "Teststadt",
                 "https://example.com/dortmund",
                 null);
 
@@ -63,14 +63,14 @@ class ProcessDefinitionRepositoryIntegrationTest {
                 dortmundAuthority,
                 "DO_STUDENT_RESIDENCE_EXTENSION",
                 "Student Residence Permit Extension",
-                "Dortmund",
+                "Teststadt",
                 "IMMIGRATION");
 
         ProcessDefinition addressRegistration = new ProcessDefinition(
                 dortmundAuthority,
                 "DO_ADDRESS_REGISTRATION",
                 "Address Registration",
-                "Dortmund",
+                "Teststadt",
                 "REGISTRATION");
 
         ProcessDefinition cologneRegistration = new ProcessDefinition(
@@ -86,13 +86,13 @@ class ProcessDefinitionRepositoryIntegrationTest {
                         addressRegistration,
                         cologneRegistration));
 
-        // Act: search for active Dortmund processes
+        // Act: search for active processes in the test city
         List<ProcessDefinition> result =
                 processDefinitionRepository
                         .findByCityIgnoreCaseAndActiveTrueOrderByTitleAsc(
-                                "dOrTmUnD");
+                                "tEsTsTaDt");
 
-        // Assert: only Dortmund results, ordered by title
+        // Assert: only test-city results, ordered by title
         assertThat(result)
                 .extracting(ProcessDefinition::getTitle)
                 .containsExactly(

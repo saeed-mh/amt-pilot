@@ -41,4 +41,17 @@ class PostgresMigrationIntegrationTest {
 		assertThat(tableCount).isEqualTo(7);
 	}
 
+	@Test
+	void flywaySeedsAddressRegistrationRequirements() {
+		Integer requirementCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM requirement_definition requirement
+				JOIN process_definition process
+				  ON process.id = requirement.process_id
+				WHERE process.code = 'ADDRESS_REGISTRATION'
+				""", Integer.class);
+
+		assertThat(requirementCount).isEqualTo(3);
+	}
+
 }

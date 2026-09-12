@@ -58,7 +58,7 @@ class ApplicationDocumentRepositoryIntegrationTest {
 
         ProcessDefinition process = new ProcessDefinition(
                 null,
-                "ADDRESS_REGISTRATION",
+                "TEST_DOCUMENT_ADDRESS_REGISTRATION",
                 "Address Registration",
                 "Dortmund",
                 "REGISTRATION");
