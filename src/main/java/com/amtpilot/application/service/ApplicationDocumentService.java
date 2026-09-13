@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.amtpilot.application.dto.DocumentDownload;
 import com.amtpilot.application.dto.DocumentResponse;
 import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
@@ -117,26 +118,34 @@ public class ApplicationDocumentService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public DocumentDownload download(
+            UUID userId,
+            UUID applicationId,
+            UUID documentId) {
+
+        ApplicationDocument document = findOwnedDocument(
+                userId,
+                applicationId,
+                documentId);
+
+        return new DocumentDownload(
+                storageService.load(document.getStoragePath()),
+                document.getOriginalFilename(),
+                document.getContentType(),
+                document.getSizeBytes());
+    }
+
     @Transactional
     public void delete(
             UUID userId,
             UUID applicationId,
             UUID documentId) {
 
-        applicationRepository
-                .findByIdAndUserId(applicationId, userId)
-                .orElseThrow(
-                        () -> new ApplicationNotFoundException(
-                                applicationId));
-
-        ApplicationDocument document = documentRepository
-                .findByIdAndApplicationUserId(documentId, userId)
-                .filter(item -> item.getApplication()
-                        .getId()
-                        .equals(applicationId))
-                .orElseThrow(
-                        () -> new DocumentNotFoundException(
-                                documentId));
+        ApplicationDocument document = findOwnedDocument(
+                userId,
+                applicationId,
+                documentId);
 
         ApplicationChecklistItem checklistItem = document.getChecklistItem();
 
@@ -153,6 +162,27 @@ public class ApplicationDocumentService {
                     checklistItem.getId(),
                     new UpdateChecklistItemRequest(false));
         }
+    }
+
+    private ApplicationDocument findOwnedDocument(
+            UUID userId,
+            UUID applicationId,
+            UUID documentId) {
+
+        applicationRepository
+                .findByIdAndUserId(applicationId, userId)
+                .orElseThrow(
+                        () -> new ApplicationNotFoundException(
+                                applicationId));
+
+        return documentRepository
+                .findByIdAndApplicationUserId(documentId, userId)
+                .filter(item -> item.getApplication()
+                        .getId()
+                        .equals(applicationId))
+                .orElseThrow(
+                        () -> new DocumentNotFoundException(
+                                documentId));
     }
 
     private ApplicationChecklistItem findChecklistItem(

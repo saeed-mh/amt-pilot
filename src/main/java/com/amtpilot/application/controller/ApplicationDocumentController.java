@@ -1,8 +1,12 @@
 package com.amtpilot.application.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.amtpilot.application.dto.DocumentDownload;
 import com.amtpilot.application.dto.DocumentResponse;
 import com.amtpilot.application.service.ApplicationDocumentService;
 import com.amtpilot.common.web.ApiResponse;
@@ -71,6 +76,34 @@ public class ApplicationDocumentController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(documents, traceId));
+    }
+
+    @GetMapping("/{documentId}")
+    public ResponseEntity<Resource> downloadDocument(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID applicationId,
+            @PathVariable UUID documentId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        DocumentDownload document = documentService.download(
+                userId,
+                applicationId,
+                documentId);
+
+        ContentDisposition disposition = ContentDisposition.inline()
+                .filename(
+                        document.originalFilename(),
+                        StandardCharsets.UTF_8)
+                .build();
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(document.sizeBytes())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        disposition.toString())
+                .body(document.resource());
     }
 
     @DeleteMapping("/{documentId}")

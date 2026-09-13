@@ -55,3 +55,10 @@ export function deleteApplicationDocument(applicationId, documentId) {
     method: 'DELETE',
   })
 }
+
+export function downloadApplicationDocument(applicationId, documentId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/documents/${documentId}`, {
+    authenticated: true,
+    responseType: 'blob',
+  })
+}

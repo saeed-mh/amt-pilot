@@ -1,6 +1,9 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
-export async function apiRequest(path, { authenticated = false, ...options } = {}) {
+export async function apiRequest(
+  path,
+  { authenticated = false, responseType = 'json', ...options } = {},
+) {
   const headers = new Headers(options.headers)
 
   if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
@@ -24,7 +27,13 @@ export async function apiRequest(path, { authenticated = false, ...options } = {
   })
 
   const contentType = response.headers.get('content-type')
-  const body = contentType?.includes('application/json') ? await response.json() : null
+  let body = null
+
+  if (contentType?.includes('application/json')) {
+    body = await response.json()
+  } else if (responseType === 'blob' && response.ok) {
+    body = await response.blob()
+  }
 
   if (response.status === 401 && authenticated) {
     localStorage.removeItem('amtpilot_access_token')
@@ -42,5 +51,5 @@ export async function apiRequest(path, { authenticated = false, ...options } = {
     throw error
   }
 
-  return body?.data
+  return responseType === 'blob' ? body : body?.data
 }

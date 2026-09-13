@@ -11,8 +11,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mock.web.MockMultipartFile;
 
+import com.amtpilot.application.dto.DocumentDownload;
 import com.amtpilot.application.dto.DocumentResponse;
 import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
@@ -204,6 +206,84 @@ class ApplicationDocumentServiceTest {
 
         assertThat(result.get(0).createdAt())
                 .isEqualTo(createdAt);
+    }
+
+    @Test
+    void downloadsDocumentForOwnedApplication() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        Application application = org.mockito.Mockito.mock(Application.class);
+        ApplicationDocument document = org.mockito.Mockito.mock(
+                ApplicationDocument.class);
+        ByteArrayResource resource = new ByteArrayResource(
+                "%PDF-1.7".getBytes());
+
+        when(applicationRepository.findByIdAndUserId(
+                applicationId,
+                userId))
+                .thenReturn(Optional.of(application));
+
+        when(documentRepository.findByIdAndApplicationUserId(
+                documentId,
+                userId))
+                .thenReturn(Optional.of(document));
+
+        when(document.getApplication())
+                .thenReturn(application);
+
+        when(application.getId())
+                .thenReturn(applicationId);
+
+        when(document.getStoragePath())
+                .thenReturn("stored-document.pdf");
+
+        when(document.getOriginalFilename())
+                .thenReturn("passport.pdf");
+
+        when(document.getContentType())
+                .thenReturn("application/pdf");
+
+        when(document.getSizeBytes())
+                .thenReturn(8L);
+
+        when(storageService.load("stored-document.pdf"))
+                .thenReturn(resource);
+
+        DocumentDownload result = documentService.download(
+                userId,
+                applicationId,
+                documentId);
+
+        assertThat(result.resource()).isSameAs(resource);
+        assertThat(result.originalFilename()).isEqualTo("passport.pdf");
+        assertThat(result.contentType()).isEqualTo("application/pdf");
+        assertThat(result.sizeBytes()).isEqualTo(8L);
+
+        verify(storageService).load("stored-document.pdf");
+    }
+
+    @Test
+    void rejectsDownloadForApplicationNotOwnedByUser() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        when(applicationRepository.findByIdAndUserId(
+                applicationId,
+                userId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.download(
+                userId,
+                applicationId,
+                documentId))
+                .isInstanceOf(ApplicationNotFoundException.class);
+
+        verifyNoInteractions(
+                documentRepository,
+                storageService);
     }
 
     @Test

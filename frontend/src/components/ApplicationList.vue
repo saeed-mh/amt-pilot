@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import {
   deleteApplicationDocument,
+  downloadApplicationDocument,
   getApplicationDocuments,
   getApplicationChecklist,
   getApplications,
@@ -23,6 +24,7 @@ const documentError = ref('')
 const documentMessage = ref('')
 const uploadingChecklistItemId = ref(null)
 const deletingDocumentId = ref(null)
+const viewingDocumentId = ref(null)
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -148,6 +150,33 @@ async function removeDocument(applicationId, document) {
     documentError.value = error.message
   } finally {
     deletingDocumentId.value = null
+  }
+}
+
+async function viewDocument(applicationId, document) {
+  const previewWindow = window.open('', '_blank')
+
+  if (!previewWindow) {
+    documentError.value = 'Please allow pop-ups to view the PDF.'
+    return
+  }
+
+  previewWindow.opener = null
+  viewingDocumentId.value = document.id
+  documentError.value = ''
+  documentMessage.value = ''
+
+  try {
+    const file = await downloadApplicationDocument(applicationId, document.id)
+    const fileUrl = URL.createObjectURL(file)
+
+    previewWindow.location.href = fileUrl
+    window.setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000)
+  } catch (error) {
+    previewWindow.close()
+    documentError.value = error.message
+  } finally {
+    viewingDocumentId.value = null
   }
 }
 
@@ -277,14 +306,25 @@ onMounted(loadApplications)
                       <small>{{ formatFileSize(document.sizeBytes) }}</small>
                     </div>
 
-                    <button
-                      class="delete-document-button"
-                      type="button"
-                      :disabled="deletingDocumentId !== null"
-                      @click="removeDocument(application.id, document)"
-                    >
-                      {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
-                    </button>
+                    <div class="document-actions">
+                      <button
+                        class="view-document-button"
+                        type="button"
+                        :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
+                        @click="viewDocument(application.id, document)"
+                      >
+                        {{ viewingDocumentId === document.id ? 'Opening...' : 'View PDF' }}
+                      </button>
+
+                      <button
+                        class="delete-document-button"
+                        type="button"
+                        :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
+                        @click="removeDocument(application.id, document)"
+                      >
+                        {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
+                      </button>
+                    </div>
                   </li>
                 </ul>
 
@@ -503,23 +543,42 @@ onMounted(loadApplications)
   margin: 0;
 }
 
-.delete-document-button {
+.document-actions {
+  display: flex;
   flex-shrink: 0;
+  gap: 0.4rem;
+}
+
+.view-document-button,
+.delete-document-button {
   padding: 0.35rem 0.6rem;
-  border: 1px solid #dc2626;
   border-radius: 0.35rem;
   background: #ffffff;
-  color: #dc2626;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 
+.view-document-button {
+  border: 1px solid #2563eb;
+  color: #2563eb;
+}
+
+.delete-document-button {
+  border: 1px solid #dc2626;
+  color: #dc2626;
+}
+
+.view-document-button:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
 .delete-document-button:hover:not(:disabled) {
   background: #fef2f2;
 }
 
+.view-document-button:disabled,
 .delete-document-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
