@@ -2,9 +2,12 @@
 import { onMounted, ref } from 'vue'
 
 import {
+  deleteApplicationDocument,
+  getApplicationDocuments,
   getApplicationChecklist,
   getApplications,
   updateChecklistItem,
+  uploadApplicationDocument,
 } from '@/services/application'
 
 const applications = ref([])
@@ -15,6 +18,11 @@ const checklistItems = ref([])
 const isLoadingChecklist = ref(false)
 const checklistError = ref('')
 const updatingChecklistItemId = ref(null)
+const documents = ref([])
+const documentError = ref('')
+const documentMessage = ref('')
+const uploadingChecklistItemId = ref(null)
+const deletingDocumentId = ref(null)
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -43,16 +51,28 @@ async function toggleChecklist(applicationId) {
     selectedApplicationId.value = null
     checklistItems.value = []
     checklistError.value = ''
+    documents.value = []
+    documentError.value = ''
+    documentMessage.value = ''
     return
   }
 
   selectedApplicationId.value = applicationId
   checklistItems.value = []
   checklistError.value = ''
+  documents.value = []
+  documentError.value = ''
+  documentMessage.value = ''
   isLoadingChecklist.value = true
 
   try {
-    checklistItems.value = await getApplicationChecklist(applicationId)
+    const [loadedChecklistItems, loadedDocuments] = await Promise.all([
+      getApplicationChecklist(applicationId),
+      getApplicationDocuments(applicationId),
+    ])
+
+    checklistItems.value = loadedChecklistItems
+    documents.value = loadedDocuments
   } catch (error) {
     checklistError.value = error.message
   } finally {
@@ -79,6 +99,72 @@ async function changeChecklistItem(item, completed) {
   }
 
   await loadApplications(false)
+}
+
+async function uploadDocument(applicationId, checklistItem, event) {
+  const file = event.target.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  uploadingChecklistItemId.value = checklistItem.id
+  documentError.value = ''
+  documentMessage.value = ''
+
+  try {
+    const uploadedDocument = await uploadApplicationDocument(applicationId, file, checklistItem.id)
+
+    documents.value.unshift(uploadedDocument)
+    checklistItem.completed = true
+    documentMessage.value = `${uploadedDocument.originalFilename} uploaded successfully.`
+    await loadApplications(false)
+  } catch (error) {
+    documentError.value = error.message
+  } finally {
+    uploadingChecklistItemId.value = null
+    event.target.value = ''
+  }
+}
+
+async function removeDocument(applicationId, document) {
+  const confirmed = window.confirm(`Delete ${document.originalFilename}?`)
+
+  if (!confirmed) {
+    return
+  }
+
+  deletingDocumentId.value = document.id
+  documentError.value = ''
+  documentMessage.value = ''
+
+  try {
+    await deleteApplicationDocument(applicationId, document.id)
+    documents.value = documents.value.filter((item) => item.id !== document.id)
+    checklistItems.value = await getApplicationChecklist(applicationId)
+    documentMessage.value = `${document.originalFilename} deleted successfully.`
+    await loadApplications(false)
+  } catch (error) {
+    documentError.value = error.message
+  } finally {
+    deletingDocumentId.value = null
+  }
+}
+
+function documentsForChecklistItem(checklistItemId) {
+  return documents.value.filter((document) => document.checklistItemId === checklistItemId)
+}
+
+function formatFileSize(sizeBytes) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatDate(value) {
@@ -157,11 +243,11 @@ onMounted(loadApplications)
 
           <ul v-else class="checklist-list">
             <li v-for="item in checklistItems" :key="item.id">
-              <label>
+              <label class="checklist-item-label">
                 <input
                   type="checkbox"
                   :checked="item.completed"
-                  :disabled="updatingChecklistItemId !== null"
+                  :disabled="updatingChecklistItemId !== null || uploadingChecklistItemId !== null"
                   @change="changeChecklistItem(item, $event.target.checked)"
                 />
 
@@ -170,8 +256,50 @@ onMounted(loadApplications)
                   <small>{{ item.required ? 'Required' : 'Optional' }}</small>
                 </span>
               </label>
+
+              <div class="document-area">
+                <label class="upload-label">
+                  <span>
+                    {{ uploadingChecklistItemId === item.id ? 'Uploading...' : 'Upload PDF' }}
+                  </span>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    :disabled="uploadingChecklistItemId !== null || deletingDocumentId !== null"
+                    @change="uploadDocument(application.id, item, $event)"
+                  />
+                </label>
+
+                <ul v-if="documentsForChecklistItem(item.id).length > 0" class="document-list">
+                  <li v-for="document in documentsForChecklistItem(item.id)" :key="document.id">
+                    <div class="document-details">
+                      <span>{{ document.originalFilename }}</span>
+                      <small>{{ formatFileSize(document.sizeBytes) }}</small>
+                    </div>
+
+                    <button
+                      class="delete-document-button"
+                      type="button"
+                      :disabled="deletingDocumentId !== null"
+                      @click="removeDocument(application.id, document)"
+                    >
+                      {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
+                    </button>
+                  </li>
+                </ul>
+
+                <small v-else class="no-documents">No PDF uploaded yet.</small>
+              </div>
             </li>
           </ul>
+
+          <p v-if="documentError" class="feedback error" role="alert">
+            {{ documentError }}
+          </p>
+
+          <p v-if="documentMessage" class="feedback success" role="status">
+            {{ documentMessage }}
+          </p>
         </div>
       </li>
     </ul>
@@ -292,7 +420,7 @@ onMounted(loadApplications)
   background: #f8fafc;
 }
 
-.checklist-list label {
+.checklist-item-label {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -313,6 +441,108 @@ onMounted(loadApplications)
 .checklist-list small {
   margin-top: 0.25rem;
   color: #64748b;
+}
+
+.document-area {
+  margin: 0.75rem 0 0 1.75rem;
+}
+
+.upload-label {
+  display: inline-block;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #2563eb;
+  border-radius: 0.4rem;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upload-label:hover {
+  background: #eff6ff;
+}
+
+.upload-label input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.document-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.document-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 0.875rem;
+}
+
+.document-details {
+  min-width: 0;
+}
+
+.document-details span {
+  overflow-wrap: anywhere;
+}
+
+.document-details small {
+  display: block;
+  margin: 0;
+}
+
+.delete-document-button {
+  flex-shrink: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #dc2626;
+  border-radius: 0.35rem;
+  background: #ffffff;
+  color: #dc2626;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-document-button:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.delete-document-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.no-documents {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.feedback {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.feedback.success {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.feedback.error {
+  background: #fef2f2;
 }
 
 .error {

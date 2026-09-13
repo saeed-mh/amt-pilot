@@ -17,4 +17,6 @@ public interface ApplicationDocumentRepository
     Optional<ApplicationDocument> findByIdAndApplicationUserId(
             UUID documentId,
             UUID userId);
+
+    boolean existsByChecklistItemId(UUID checklistItemId);
 }

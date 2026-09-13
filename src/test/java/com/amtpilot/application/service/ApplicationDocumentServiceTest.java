@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.amtpilot.application.dto.DocumentResponse;
+import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
@@ -45,6 +46,9 @@ class ApplicationDocumentServiceTest {
     @Mock
     private DocumentStorageService storageService;
 
+    @Mock
+    private ApplicationService applicationService;
+
     private ApplicationDocumentService documentService;
 
     @BeforeEach
@@ -53,7 +57,8 @@ class ApplicationDocumentServiceTest {
                 applicationRepository,
                 checklistRepository,
                 documentRepository,
-                storageService);
+                storageService,
+                applicationService);
     }
 
     @Test
@@ -134,6 +139,11 @@ class ApplicationDocumentServiceTest {
 
         assertThat(savedDocument.getChecklistItem())
                 .isSameAs(checklistItem);
+
+        verify(applicationService).updateChecklistItem(
+                userId,
+                checklistItemId,
+                new UpdateChecklistItemRequest(true));
     }
 
     @Test
@@ -312,5 +322,111 @@ class ApplicationDocumentServiceTest {
 
         verify(storageService)
                 .delete("stored-document.pdf");
+    }
+
+    @Test
+    void deletesDocumentForOwnedApplication() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        Application application = org.mockito.Mockito.mock(Application.class);
+        ApplicationChecklistItem checklistItem = org.mockito.Mockito.mock(
+                ApplicationChecklistItem.class);
+        ApplicationDocument document = org.mockito.Mockito.mock(
+                ApplicationDocument.class);
+        UUID checklistItemId = UUID.randomUUID();
+
+        when(applicationRepository.findByIdAndUserId(
+                applicationId,
+                userId))
+                .thenReturn(Optional.of(application));
+
+        when(documentRepository.findByIdAndApplicationUserId(
+                documentId,
+                userId))
+                .thenReturn(Optional.of(document));
+
+        when(document.getApplication())
+                .thenReturn(application);
+
+        when(application.getId())
+                .thenReturn(applicationId);
+
+        when(document.getStoragePath())
+                .thenReturn("stored-document.pdf");
+
+        when(document.getChecklistItem())
+                .thenReturn(checklistItem);
+
+        when(checklistItem.getId())
+                .thenReturn(checklistItemId);
+
+        when(documentRepository.existsByChecklistItemId(
+                checklistItemId))
+                .thenReturn(false);
+
+        documentService.delete(
+                userId,
+                applicationId,
+                documentId);
+
+        verify(documentRepository).delete(document);
+        verify(documentRepository).flush();
+        verify(storageService).delete("stored-document.pdf");
+        verify(applicationService).updateChecklistItem(
+                userId,
+                checklistItemId,
+                new UpdateChecklistItemRequest(false));
+    }
+
+    @Test
+    void keepsChecklistItemCompletedWhenAnotherDocumentExists() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        UUID checklistItemId = UUID.randomUUID();
+
+        Application application = org.mockito.Mockito.mock(Application.class);
+        ApplicationChecklistItem checklistItem = org.mockito.Mockito.mock(
+                ApplicationChecklistItem.class);
+        ApplicationDocument document = org.mockito.Mockito.mock(
+                ApplicationDocument.class);
+
+        when(applicationRepository.findByIdAndUserId(
+                applicationId,
+                userId))
+                .thenReturn(Optional.of(application));
+
+        when(documentRepository.findByIdAndApplicationUserId(
+                documentId,
+                userId))
+                .thenReturn(Optional.of(document));
+
+        when(document.getApplication())
+                .thenReturn(application);
+
+        when(application.getId())
+                .thenReturn(applicationId);
+
+        when(document.getChecklistItem())
+                .thenReturn(checklistItem);
+
+        when(checklistItem.getId())
+                .thenReturn(checklistItemId);
+
+        when(documentRepository.existsByChecklistItemId(
+                checklistItemId))
+                .thenReturn(true);
+
+        documentService.delete(
+                userId,
+                applicationId,
+                documentId);
+
+        verify(documentRepository).delete(document);
+        verify(documentRepository).flush();
+        verify(storageService).delete(document.getStoragePath());
+        verifyNoInteractions(applicationService);
     }
 }

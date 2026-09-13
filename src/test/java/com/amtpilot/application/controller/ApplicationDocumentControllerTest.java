@@ -129,4 +129,29 @@ class ApplicationDocumentControllerTest {
 
         verify(documentService).list(userId, applicationId);
     }
+
+    @Test
+    void deletesDocumentForAuthenticatedUser() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getSubject()).thenReturn(userId.toString());
+
+        ResponseEntity<Void> response = documentController.deleteDocument(
+                jwt,
+                applicationId,
+                documentId);
+
+        assertThat(response.getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+
+        assertThat(response.getBody()).isNull();
+
+        verify(documentService).delete(
+                userId,
+                applicationId,
+                documentId);
+    }
 }

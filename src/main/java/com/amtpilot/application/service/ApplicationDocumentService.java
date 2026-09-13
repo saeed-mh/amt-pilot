@@ -9,8 +9,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.amtpilot.application.dto.DocumentResponse;
+import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
+import com.amtpilot.application.exception.DocumentNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ApplicationDocument;
@@ -25,17 +27,20 @@ public class ApplicationDocumentService {
     private final ApplicationChecklistItemRepository checklistRepository;
     private final ApplicationDocumentRepository documentRepository;
     private final DocumentStorageService storageService;
+    private final ApplicationService applicationService;
 
     public ApplicationDocumentService(
             ApplicationRepository applicationRepository,
             ApplicationChecklistItemRepository checklistRepository,
             ApplicationDocumentRepository documentRepository,
-            DocumentStorageService storageService) {
+            DocumentStorageService storageService,
+            ApplicationService applicationService) {
 
         this.applicationRepository = applicationRepository;
         this.checklistRepository = checklistRepository;
         this.documentRepository = documentRepository;
         this.storageService = storageService;
+        this.applicationService = applicationService;
     }
 
     @Transactional
@@ -73,6 +78,13 @@ public class ApplicationDocumentService {
 
             ApplicationDocument savedDocument = documentRepository.saveAndFlush(document);
 
+            if (checklistItemId != null) {
+                applicationService.updateChecklistItem(
+                        userId,
+                        checklistItemId,
+                        new UpdateChecklistItemRequest(true));
+            }
+
             return toResponse(savedDocument);
 
         } catch (RuntimeException exception) {
@@ -103,6 +115,44 @@ public class ApplicationDocumentService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public void delete(
+            UUID userId,
+            UUID applicationId,
+            UUID documentId) {
+
+        applicationRepository
+                .findByIdAndUserId(applicationId, userId)
+                .orElseThrow(
+                        () -> new ApplicationNotFoundException(
+                                applicationId));
+
+        ApplicationDocument document = documentRepository
+                .findByIdAndApplicationUserId(documentId, userId)
+                .filter(item -> item.getApplication()
+                        .getId()
+                        .equals(applicationId))
+                .orElseThrow(
+                        () -> new DocumentNotFoundException(
+                                documentId));
+
+        ApplicationChecklistItem checklistItem = document.getChecklistItem();
+
+        documentRepository.delete(document);
+        documentRepository.flush();
+        storageService.delete(document.getStoragePath());
+
+        if (checklistItem != null
+                && !documentRepository.existsByChecklistItemId(
+                        checklistItem.getId())) {
+
+            applicationService.updateChecklistItem(
+                    userId,
+                    checklistItem.getId(),
+                    new UpdateChecklistItemRequest(false));
+        }
     }
 
     private ApplicationChecklistItem findChecklistItem(

@@ -27,3 +27,31 @@ export function updateChecklistItem(checklistItemId, completed) {
     body: JSON.stringify({ completed }),
   })
 }
+
+export function getApplicationDocuments(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/documents`, {
+    authenticated: true,
+  })
+}
+
+export function uploadApplicationDocument(applicationId, file, checklistItemId) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const checklistQuery = checklistItemId
+    ? `?checklistItemId=${encodeURIComponent(checklistItemId)}`
+    : ''
+
+  return apiRequest(`/api/v1/applications/${applicationId}/documents${checklistQuery}`, {
+    authenticated: true,
+    method: 'POST',
+    body: formData,
+  })
+}
+
+export function deleteApplicationDocument(applicationId, documentId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/documents/${documentId}`, {
+    authenticated: true,
+    method: 'DELETE',
+  })
+}
