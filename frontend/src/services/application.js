@@ -14,6 +14,13 @@ export function getApplications() {
   })
 }
 
+export function deleteApplication(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}`, {
+    authenticated: true,
+    method: 'DELETE',
+  })
+}
+
 export function analyzeApplication(applicationId) {
   return apiRequest(`/api/v1/applications/${applicationId}/analyze`, {
     authenticated: true,

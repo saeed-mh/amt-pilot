@@ -125,6 +125,24 @@ class ApplicationControllerTest {
         }
 
         @Test
+        void deletesApplicationForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                ResponseEntity<Void> response = applicationController
+                                .deleteApplication(jwt, applicationId);
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.NO_CONTENT);
+                assertThat(response.getBody()).isNull();
+
+                verify(applicationService).delete(userId, applicationId);
+        }
+
+        @Test
         void updatesApplicationForAuthenticatedUser() {
                 UUID userId = UUID.randomUUID();
                 UUID applicationId = UUID.randomUUID();

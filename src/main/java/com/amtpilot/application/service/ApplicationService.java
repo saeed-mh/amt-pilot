@@ -15,12 +15,14 @@ import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
+import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.process.exception.ProcessNotFoundException;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
+import com.amtpilot.repository.ApplicationDocumentRepository;
 import com.amtpilot.repository.ApplicationRepository;
 import com.amtpilot.repository.ProcessDefinitionRepository;
 import com.amtpilot.repository.RequirementDefinitionRepository;
@@ -35,18 +37,24 @@ public class ApplicationService {
         private final ProcessDefinitionRepository processRepository;
         private final RequirementDefinitionRepository requirementRepository;
         private final ApplicationChecklistItemRepository checklistRepository;
+        private final ApplicationDocumentRepository documentRepository;
+        private final DocumentStorageService storageService;
 
         public ApplicationService(
                         ApplicationRepository applicationRepository,
                         UserRepository userRepository,
                         ProcessDefinitionRepository processRepository,
                         RequirementDefinitionRepository requirementRepository,
-                        ApplicationChecklistItemRepository checklistRepository) {
+                        ApplicationChecklistItemRepository checklistRepository,
+                        ApplicationDocumentRepository documentRepository,
+                        DocumentStorageService storageService) {
                 this.applicationRepository = applicationRepository;
                 this.userRepository = userRepository;
                 this.processRepository = processRepository;
                 this.requirementRepository = requirementRepository;
                 this.checklistRepository = checklistRepository;
+                this.documentRepository = documentRepository;
+                this.storageService = storageService;
         }
 
         @Transactional
@@ -120,6 +128,27 @@ public class ApplicationService {
                                 .orElseThrow(() -> new ApplicationNotFoundException(applicationId));
 
                 return toResponse(application);
+        }
+
+        @Transactional
+        public void delete(UUID userId, UUID applicationId) {
+                Application application = applicationRepository
+                                .findByIdAndUserId(applicationId, userId)
+                                .orElseThrow(
+                                                () -> new ApplicationNotFoundException(
+                                                                applicationId));
+
+                List<String> storagePaths = documentRepository
+                                .findByApplicationIdOrderByCreatedAtDesc(
+                                                applicationId)
+                                .stream()
+                                .map(ApplicationDocument::getStoragePath)
+                                .toList();
+
+                applicationRepository.delete(application);
+                applicationRepository.flush();
+
+                storagePaths.forEach(storageService::delete);
         }
 
         @Transactional

@@ -21,12 +21,14 @@ import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
+import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.process.exception.ProcessNotFoundException;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
+import com.amtpilot.repository.ApplicationDocumentRepository;
 import com.amtpilot.repository.ApplicationRepository;
 import com.amtpilot.repository.ProcessDefinitionRepository;
 import com.amtpilot.repository.RequirementDefinitionRepository;
@@ -58,6 +60,12 @@ class ApplicationServiceTest {
 
         @Mock
         private ApplicationChecklistItemRepository checklistRepository;
+
+        @Mock
+        private ApplicationDocumentRepository documentRepository;
+
+        @Mock
+        private DocumentStorageService storageService;
 
         @InjectMocks
         private ApplicationService applicationService;
@@ -327,6 +335,67 @@ class ApplicationServiceTest {
 
                 verify(applicationRepository)
                                 .findByIdAndUserId(applicationId, userId);
+        }
+
+        @Test
+        void deletesOwnedApplicationAndStoredDocuments() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                Application application = org.mockito.Mockito.mock(Application.class);
+                ApplicationDocument firstDocument = org.mockito.Mockito.mock(
+                                ApplicationDocument.class);
+                ApplicationDocument secondDocument = org.mockito.Mockito.mock(
+                                ApplicationDocument.class);
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.of(application));
+                when(documentRepository
+                                .findByApplicationIdOrderByCreatedAtDesc(
+                                                applicationId))
+                                .thenReturn(List.of(
+                                                firstDocument,
+                                                secondDocument));
+                when(firstDocument.getStoragePath())
+                                .thenReturn("first-document.pdf");
+                when(secondDocument.getStoragePath())
+                                .thenReturn("second-document.pdf");
+
+                applicationService.delete(userId, applicationId);
+
+                verify(applicationRepository).delete(application);
+                verify(applicationRepository).flush();
+                verify(storageService).delete("first-document.pdf");
+                verify(storageService).delete("second-document.pdf");
+        }
+
+        @Test
+        void rejectsDeletingApplicationNotOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.empty());
+
+                ApplicationNotFoundException exception = assertThrows(
+                                ApplicationNotFoundException.class,
+                                () -> applicationService.delete(
+                                                userId,
+                                                applicationId));
+
+                assertEquals(
+                                "Application not found: " + applicationId,
+                                exception.getMessage());
+
+                verify(applicationRepository, never())
+                                .delete(any(Application.class));
+                verify(documentRepository, never())
+                                .findByApplicationIdOrderByCreatedAtDesc(
+                                                applicationId);
         }
 
         @Test

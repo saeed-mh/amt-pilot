@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import {
   analyzeApplication,
+  deleteApplication,
   deleteApplicationDocument,
   downloadApplicationDocument,
   getApplicationDocuments,
@@ -28,6 +29,8 @@ const deletingDocumentId = ref(null)
 const viewingDocumentId = ref(null)
 const analyzingApplicationId = ref(null)
 const analysisError = ref('')
+const deletingApplicationId = ref(null)
+const deletionError = ref('')
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -203,6 +206,37 @@ async function analyzeSelectedApplication(application) {
   }
 }
 
+async function removeApplication(application) {
+  const confirmed = window.confirm(
+    `Delete ${application.processTitle}? This will permanently delete its checklist and uploaded documents.`,
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  deletingApplicationId.value = application.id
+  deletionError.value = ''
+
+  try {
+    await deleteApplication(application.id)
+    applications.value = applications.value.filter((item) => item.id !== application.id)
+
+    if (selectedApplicationId.value === application.id) {
+      selectedApplicationId.value = null
+      checklistItems.value = []
+      documents.value = []
+      checklistError.value = ''
+      documentError.value = ''
+      documentMessage.value = ''
+    }
+  } catch (error) {
+    deletionError.value = error.message
+  } finally {
+    deletingApplicationId.value = null
+  }
+}
+
 function canAnalyze(application) {
   return ['DRAFT', 'ACTION_REQUIRED', 'NEEDS_REVIEW', 'READY_TO_SUBMIT', 'SUBMITTED'].includes(
     application.status,
@@ -259,6 +293,10 @@ onMounted(loadApplications)
       {{ analysisError }}
     </p>
 
+    <p v-if="deletionError" class="feedback error" role="alert">
+      {{ deletionError }}
+    </p>
+
     <p v-if="isLoading">Loading applications...</p>
 
     <p v-else-if="errorMessage" class="error" role="alert">
@@ -299,7 +337,7 @@ onMounted(loadApplications)
             class="checklist-button"
             type="button"
             :aria-expanded="selectedApplicationId === application.id"
-            :disabled="isLoadingChecklist"
+            :disabled="isLoadingChecklist || deletingApplicationId !== null"
             @click="toggleChecklist(application.id)"
           >
             {{ selectedApplicationId === application.id ? 'Close checklist' : 'Open checklist' }}
@@ -309,10 +347,27 @@ onMounted(loadApplications)
             v-if="application.status !== 'COMPLETED'"
             class="analyze-button"
             type="button"
-            :disabled="analyzingApplicationId !== null || !canAnalyze(application)"
+            :disabled="
+              analyzingApplicationId !== null ||
+              deletingApplicationId !== null ||
+              !canAnalyze(application)
+            "
             @click="analyzeSelectedApplication(application)"
           >
             {{ analysisButtonLabel(application) }}
+          </button>
+
+          <button
+            class="delete-application-button"
+            type="button"
+            :disabled="
+              deletingApplicationId !== null ||
+              uploadingChecklistItemId !== null ||
+              deletingDocumentId !== null
+            "
+            @click="removeApplication(application)"
+          >
+            {{ deletingApplicationId === application.id ? 'Deleting...' : 'Delete application' }}
           </button>
         </div>
 
@@ -485,7 +540,8 @@ onMounted(loadApplications)
 }
 
 .checklist-button,
-.analyze-button {
+.analyze-button,
+.delete-application-button {
   padding: 0.6rem 1rem;
   border-radius: 0.5rem;
   font: inherit;
@@ -505,6 +561,12 @@ onMounted(loadApplications)
   color: #ffffff;
 }
 
+.delete-application-button {
+  border: 1px solid #dc2626;
+  background: #ffffff;
+  color: #dc2626;
+}
+
 .checklist-button:hover:not(:disabled) {
   background: #eff6ff;
 }
@@ -513,8 +575,13 @@ onMounted(loadApplications)
   background: #1d4ed8;
 }
 
+.delete-application-button:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
 .checklist-button:disabled,
-.analyze-button:disabled {
+.analyze-button:disabled,
+.delete-application-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
