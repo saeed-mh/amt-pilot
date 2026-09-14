@@ -3,7 +3,6 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ApplicationList from '@/components/ApplicationList.vue'
-import AuthorityList from '@/components/AuthorityList.vue'
 import ProcessList from '@/components/ProcessList.vue'
 import { getCurrentUser, updateCurrentUser } from '@/services/user'
 
@@ -182,8 +181,6 @@ onMounted(loadProfile)
         :city="user.city || 'Dortmund'"
         @application-created="refreshApplications"
       />
-
-      <AuthorityList v-if="user" class="authority-section" :city="user.city || 'Dortmund'" />
     </section>
   </main>
 </template>
@@ -248,8 +245,7 @@ button:disabled {
 }
 
 .application-section,
-.process-section,
-.authority-section {
+.process-section {
   margin-top: 24px;
 }
 

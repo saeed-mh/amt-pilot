@@ -95,11 +95,20 @@ class PostgresMigrationIntegrationTest {
 				  )
 				""", Integer.class);
 
+		Integer residencePermitRequirementCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM requirement_definition requirement
+				JOIN process_definition process
+				  ON process.id = requirement.process_id
+				WHERE process.code = 'RESIDENCE_PERMIT_EXTENSION'
+				""", Integer.class);
+
 		assertThat(authorityCount).isEqualTo(3);
-		assertThat(processCount).isEqualTo(7);
-		assertThat(sourceCount).isEqualTo(7);
-		assertThat(requirementCount).isEqualTo(31);
+		assertThat(processCount).isEqualTo(8);
+		assertThat(sourceCount).isEqualTo(10);
+		assertThat(requirementCount).isEqualTo(38);
 		assertThat(processesWithoutRequirements).isZero();
+		assertThat(residencePermitRequirementCount).isEqualTo(7);
 	}
 
 }
