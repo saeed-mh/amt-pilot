@@ -179,6 +179,49 @@ class ApplicationControllerTest {
         }
 
         @Test
+        void analyzesApplicationForAuthenticatedUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                Instant createdAt = Instant.parse("2026-09-05T10:00:00Z");
+                Instant updatedAt = Instant.parse("2026-09-06T10:00:00Z");
+
+                Jwt jwt = mock(Jwt.class);
+                when(jwt.getSubject()).thenReturn(userId.toString());
+
+                ApplicationResponse analyzingApplication = new ApplicationResponse(
+                                applicationId,
+                                processId,
+                                "ADDRESS_REGISTRATION",
+                                "Address Registration",
+                                ApplicationStatus.ANALYZING,
+                                50,
+                                createdAt,
+                                updatedAt);
+
+                when(applicationService.analyze(userId, applicationId))
+                                .thenReturn(analyzingApplication);
+
+                ResponseEntity<ApiResponse<ApplicationResponse>> response =
+                                applicationController.analyzeApplication(
+                                                jwt,
+                                                applicationId,
+                                                "trace-analyze");
+
+                assertThat(response.getStatusCode())
+                                .isEqualTo(HttpStatus.OK);
+                assertThat(response.getBody()).isNotNull();
+                assertThat(response.getBody().success()).isTrue();
+                assertThat(response.getBody().data())
+                                .isEqualTo(analyzingApplication);
+                assertThat(response.getBody().traceId())
+                                .isEqualTo("trace-analyze");
+
+                verify(applicationService).analyze(userId, applicationId);
+        }
+
+        @Test
         void returnsChecklistForAuthenticatedUser() {
                 UUID userId = UUID.randomUUID();
                 UUID applicationId = UUID.randomUUID();

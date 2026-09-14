@@ -54,4 +54,52 @@ class PostgresMigrationIntegrationTest {
 		assertThat(requirementCount).isEqualTo(3);
 	}
 
+	@Test
+	void flywaySeedsCoreDortmundProcessCatalog() {
+		Integer authorityCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM authority
+				WHERE city = 'Dortmund'
+				""", Integer.class);
+
+		Integer processCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM process_definition
+				WHERE city = 'Dortmund'
+				  AND active = TRUE
+				""", Integer.class);
+
+		Integer sourceCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM official_source
+				WHERE city = 'Dortmund'
+				""", Integer.class);
+
+		Integer requirementCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM requirement_definition requirement
+				JOIN process_definition process
+				  ON process.id = requirement.process_id
+				WHERE process.city = 'Dortmund'
+				""", Integer.class);
+
+		Integer processesWithoutRequirements = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM process_definition process
+				WHERE process.city = 'Dortmund'
+				  AND process.active = TRUE
+				  AND NOT EXISTS (
+				      SELECT 1
+				      FROM requirement_definition requirement
+				      WHERE requirement.process_id = process.id
+				  )
+				""", Integer.class);
+
+		assertThat(authorityCount).isEqualTo(3);
+		assertThat(processCount).isEqualTo(7);
+		assertThat(sourceCount).isEqualTo(7);
+		assertThat(requirementCount).isEqualTo(31);
+		assertThat(processesWithoutRequirements).isZero();
+	}
+
 }

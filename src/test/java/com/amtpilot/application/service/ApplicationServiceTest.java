@@ -404,6 +404,62 @@ class ApplicationServiceTest {
         }
 
         @Test
+        void startsAnalysisForOwnedApplication() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                User user = new User(
+                                "student@example.com",
+                                "hashed-password");
+                ProcessDefinition process = org.mockito.Mockito.mock(
+                                ProcessDefinition.class);
+                Application application = new Application(user, process);
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.of(application));
+
+                when(applicationRepository.saveAndFlush(application))
+                                .thenReturn(application);
+
+                when(process.getId()).thenReturn(processId);
+                when(process.getCode()).thenReturn("ADDRESS_REGISTRATION");
+                when(process.getTitle()).thenReturn("Address Registration");
+
+                ApplicationResponse response = applicationService.analyze(
+                                userId,
+                                applicationId);
+
+                assertEquals(ApplicationStatus.ANALYZING, response.status());
+                assertEquals(0, response.completeness());
+                assertEquals(ApplicationStatus.ANALYZING, application.getStatus());
+
+                verify(applicationRepository).saveAndFlush(application);
+        }
+
+        @Test
+        void rejectsAnalysisForApplicationNotOwnedByUser() {
+                UUID userId = UUID.randomUUID();
+                UUID applicationId = UUID.randomUUID();
+
+                when(applicationRepository.findByIdAndUserId(
+                                applicationId,
+                                userId))
+                                .thenReturn(Optional.empty());
+
+                assertThrows(
+                                ApplicationNotFoundException.class,
+                                () -> applicationService.analyze(
+                                                userId,
+                                                applicationId));
+
+                verify(applicationRepository, never())
+                                .saveAndFlush(any(Application.class));
+        }
+
+        @Test
         void returnsChecklistForOwnedApplication() {
                 UUID userId = UUID.randomUUID();
                 UUID applicationId = UUID.randomUUID();

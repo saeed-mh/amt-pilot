@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import {
+  analyzeApplication,
   deleteApplicationDocument,
   downloadApplicationDocument,
   getApplicationDocuments,
@@ -25,6 +26,8 @@ const documentMessage = ref('')
 const uploadingChecklistItemId = ref(null)
 const deletingDocumentId = ref(null)
 const viewingDocumentId = ref(null)
+const analyzingApplicationId = ref(null)
+const analysisError = ref('')
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -180,6 +183,44 @@ async function viewDocument(applicationId, document) {
   }
 }
 
+async function analyzeSelectedApplication(application) {
+  const confirmed = window.confirm(`Analyze ${application.processTitle} with AI?`)
+
+  if (!confirmed) {
+    return
+  }
+
+  analyzingApplicationId.value = application.id
+  analysisError.value = ''
+
+  try {
+    const analyzingApplication = await analyzeApplication(application.id)
+    Object.assign(application, analyzingApplication)
+  } catch (error) {
+    analysisError.value = error.message
+  } finally {
+    analyzingApplicationId.value = null
+  }
+}
+
+function canAnalyze(application) {
+  return ['DRAFT', 'ACTION_REQUIRED', 'NEEDS_REVIEW', 'READY_TO_SUBMIT', 'SUBMITTED'].includes(
+    application.status,
+  )
+}
+
+function analysisButtonLabel(application) {
+  if (analyzingApplicationId.value === application.id) {
+    return 'Starting analysis...'
+  }
+
+  if (application.status === 'ANALYZING') {
+    return 'Analysis in progress'
+  }
+
+  return 'Analyze with AI'
+}
+
 function documentsForChecklistItem(checklistItemId) {
   return documents.value.filter((document) => document.checklistItemId === checklistItemId)
 }
@@ -213,6 +254,10 @@ onMounted(loadApplications)
   <section class="application-card">
     <h2>My applications</h2>
     <p class="description">Track the applications you have started.</p>
+
+    <p v-if="analysisError" class="feedback error" role="alert">
+      {{ analysisError }}
+    </p>
 
     <p v-if="isLoading">Loading applications...</p>
 
@@ -249,15 +294,27 @@ onMounted(loadApplications)
           <div class="progress-value" :style="{ width: `${application.completeness}%` }"></div>
         </div>
 
-        <button
-          class="checklist-button"
-          type="button"
-          :aria-expanded="selectedApplicationId === application.id"
-          :disabled="isLoadingChecklist"
-          @click="toggleChecklist(application.id)"
-        >
-          {{ selectedApplicationId === application.id ? 'Close checklist' : 'Open checklist' }}
-        </button>
+        <div class="application-actions">
+          <button
+            class="checklist-button"
+            type="button"
+            :aria-expanded="selectedApplicationId === application.id"
+            :disabled="isLoadingChecklist"
+            @click="toggleChecklist(application.id)"
+          >
+            {{ selectedApplicationId === application.id ? 'Close checklist' : 'Open checklist' }}
+          </button>
+
+          <button
+            v-if="application.status !== 'COMPLETED'"
+            class="analyze-button"
+            type="button"
+            :disabled="analyzingApplicationId !== null || !canAnalyze(application)"
+            @click="analyzeSelectedApplication(application)"
+          >
+            {{ analysisButtonLabel(application) }}
+          </button>
+        </div>
 
         <div v-if="selectedApplicationId === application.id" class="checklist">
           <p v-if="isLoadingChecklist">Loading checklist...</p>
@@ -420,23 +477,44 @@ onMounted(loadApplications)
   background: #2563eb;
 }
 
-.checklist-button {
+.application-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   margin-top: 1rem;
+}
+
+.checklist-button,
+.analyze-button {
   padding: 0.6rem 1rem;
-  border: 1px solid #2563eb;
   border-radius: 0.5rem;
-  background: #ffffff;
-  color: #2563eb;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.checklist-button {
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+}
+
+.analyze-button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
 }
 
 .checklist-button:hover:not(:disabled) {
   background: #eff6ff;
 }
 
-.checklist-button:disabled {
+.analyze-button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.checklist-button:disabled,
+.analyze-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }

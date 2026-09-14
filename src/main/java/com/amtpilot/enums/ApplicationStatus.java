@@ -29,15 +29,18 @@ public enum ApplicationStatus {
                         || newStatus == NEEDS_REVIEW;
 
             case ACTION_REQUIRED ->
-                newStatus == READY_TO_SUBMIT
+                newStatus == ANALYZING
+                        || newStatus == READY_TO_SUBMIT
                         || newStatus == NEEDS_REVIEW;
 
             case READY_TO_SUBMIT ->
-                newStatus == SUBMITTED
+                newStatus == ANALYZING
+                        || newStatus == SUBMITTED
                         || newStatus == ACTION_REQUIRED;
 
             case SUBMITTED ->
-                newStatus == COMPLETED
+                newStatus == ANALYZING
+                        || newStatus == COMPLETED
                         || newStatus == ACTION_REQUIRED;
 
             case NEEDS_REVIEW ->

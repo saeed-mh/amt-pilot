@@ -18,6 +18,7 @@ import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
+import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.process.exception.ProcessNotFoundException;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationRepository;
@@ -135,6 +136,25 @@ public class ApplicationService {
                 application.changeStatus(request.status());
 
                 Application savedApplication = applicationRepository.saveAndFlush(application);
+
+                return toResponse(savedApplication);
+        }
+
+        @Transactional
+        public ApplicationResponse analyze(
+                        UUID userId,
+                        UUID applicationId) {
+
+                Application application = applicationRepository
+                                .findByIdAndUserId(applicationId, userId)
+                                .orElseThrow(
+                                                () -> new ApplicationNotFoundException(
+                                                                applicationId));
+
+                application.changeStatus(ApplicationStatus.ANALYZING);
+
+                Application savedApplication = applicationRepository
+                                .saveAndFlush(application);
 
                 return toResponse(savedApplication);
         }

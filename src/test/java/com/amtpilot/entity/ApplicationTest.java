@@ -22,6 +22,33 @@ class ApplicationTest {
     }
 
     @Test
+    void allowsActionRequiredApplicationToBeReanalyzed() {
+        Application application = createApplication();
+
+        application.changeStatus(ApplicationStatus.ANALYZING);
+        application.changeStatus(ApplicationStatus.ACTION_REQUIRED);
+        application.changeStatus(ApplicationStatus.ANALYZING);
+
+        assertEquals(
+                ApplicationStatus.ANALYZING,
+                application.getStatus());
+    }
+
+    @Test
+    void allowsLegacySubmittedApplicationToBeAnalyzed() {
+        Application application = createApplication();
+
+        application.changeStatus(ApplicationStatus.ANALYZING);
+        application.changeStatus(ApplicationStatus.READY_TO_SUBMIT);
+        application.changeStatus(ApplicationStatus.SUBMITTED);
+        application.changeStatus(ApplicationStatus.ANALYZING);
+
+        assertEquals(
+                ApplicationStatus.ANALYZING,
+                application.getStatus());
+    }
+
+    @Test
     void rejectsInvalidStatusTransition() {
         Application application = createApplication();
 

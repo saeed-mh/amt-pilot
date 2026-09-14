@@ -96,6 +96,22 @@ public class ApplicationController {
                 ApiResponse.success(application, traceId));
     }
 
+    @PostMapping("/{applicationId}/analyze")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> analyzeApplication(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID applicationId,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        ApplicationResponse application = applicationService.analyze(
+                userId,
+                applicationId);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(application, traceId));
+    }
+
     @GetMapping("/{applicationId}/checklist")
     public ResponseEntity<ApiResponse<List<ChecklistItemResponse>>>
             getChecklist(

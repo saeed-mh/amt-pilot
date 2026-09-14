@@ -14,6 +14,13 @@ export function getApplications() {
   })
 }
 
+export function analyzeApplication(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/analyze`, {
+    authenticated: true,
+    method: 'POST',
+  })
+}
+
 export function getApplicationChecklist(applicationId) {
   return apiRequest(`/api/v1/applications/${applicationId}/checklist`, {
     authenticated: true,
