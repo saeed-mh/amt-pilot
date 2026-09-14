@@ -15,7 +15,6 @@ import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
-import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
@@ -139,11 +138,8 @@ public class ApplicationService {
                                                                 applicationId));
 
                 List<String> storagePaths = documentRepository
-                                .findByApplicationIdOrderByCreatedAtDesc(
-                                                applicationId)
-                                .stream()
-                                .map(ApplicationDocument::getStoragePath)
-                                .toList();
+                                .findStoragePathsByApplicationId(
+                                                applicationId);
 
                 applicationRepository.delete(application);
                 applicationRepository.flush();

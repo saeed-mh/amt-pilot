@@ -21,7 +21,6 @@ import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationChecklistItem;
-import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.entity.User;
@@ -343,25 +342,16 @@ class ApplicationServiceTest {
                 UUID applicationId = UUID.randomUUID();
 
                 Application application = org.mockito.Mockito.mock(Application.class);
-                ApplicationDocument firstDocument = org.mockito.Mockito.mock(
-                                ApplicationDocument.class);
-                ApplicationDocument secondDocument = org.mockito.Mockito.mock(
-                                ApplicationDocument.class);
-
                 when(applicationRepository.findByIdAndUserId(
                                 applicationId,
                                 userId))
                                 .thenReturn(Optional.of(application));
                 when(documentRepository
-                                .findByApplicationIdOrderByCreatedAtDesc(
+                                .findStoragePathsByApplicationId(
                                                 applicationId))
                                 .thenReturn(List.of(
-                                                firstDocument,
-                                                secondDocument));
-                when(firstDocument.getStoragePath())
-                                .thenReturn("first-document.pdf");
-                when(secondDocument.getStoragePath())
-                                .thenReturn("second-document.pdf");
+                                                "first-document.pdf",
+                                                "second-document.pdf"));
 
                 applicationService.delete(userId, applicationId);
 
@@ -394,7 +384,7 @@ class ApplicationServiceTest {
                 verify(applicationRepository, never())
                                 .delete(any(Application.class));
                 verify(documentRepository, never())
-                                .findByApplicationIdOrderByCreatedAtDesc(
+                                .findStoragePathsByApplicationId(
                                                 applicationId);
         }
 

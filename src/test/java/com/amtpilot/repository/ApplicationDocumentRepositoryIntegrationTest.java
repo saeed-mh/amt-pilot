@@ -1,6 +1,7 @@
 package com.amtpilot.repository;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,9 @@ import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.User;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -43,6 +47,9 @@ class ApplicationDocumentRepositoryIntegrationTest {
 
     @Autowired
     private ApplicationDocumentRepository documentRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     void findsDocumentsForApplicationAndChecksOwnership() {
@@ -130,6 +137,58 @@ class ApplicationDocumentRepositoryIntegrationTest {
                 .findByIdAndApplicationUserId(
                         passport.getId(),
                         alex.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    void deletesApplicationAfterLoadingDocumentStoragePaths() {
+        User user = new User(
+                "delete-application@example.com",
+                "hashed-password");
+
+        userRepository.saveAndFlush(user);
+
+        ProcessDefinition process = new ProcessDefinition(
+                null,
+                "TEST_DELETE_APPLICATION",
+                "Delete application test",
+                "Dortmund",
+                "REGISTRATION");
+
+        processRepository.saveAndFlush(process);
+
+        Application application = new Application(user, process);
+        applicationRepository.saveAndFlush(application);
+
+        ApplicationDocument document = new ApplicationDocument(
+                application,
+                null,
+                "document.pdf",
+                "application/pdf",
+                1024,
+                "delete-application/document.pdf");
+
+        documentRepository.saveAndFlush(document);
+
+        UUID applicationId = application.getId();
+        UUID documentId = document.getId();
+
+        entityManager.clear();
+
+        Application ownedApplication = applicationRepository
+                .findByIdAndUserId(applicationId, user.getId())
+                .orElseThrow();
+
+        assertThat(documentRepository
+                .findStoragePathsByApplicationId(applicationId))
+                .containsExactly("delete-application/document.pdf");
+
+        applicationRepository.delete(ownedApplication);
+        applicationRepository.flush();
+
+        assertThat(applicationRepository.findById(applicationId))
+                .isEmpty();
+        assertThat(documentRepository.findById(documentId))
                 .isEmpty();
     }
 }
