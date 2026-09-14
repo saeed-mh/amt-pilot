@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 
+import ActionConfirmation from '@/components/ActionConfirmation.vue'
 import {
   analyzeApplication,
   deleteApplication,
@@ -9,7 +10,6 @@ import {
   getApplicationDocuments,
   getApplicationChecklist,
   getApplications,
-  updateChecklistItem,
   uploadApplicationDocument,
 } from '@/services/application'
 
@@ -20,7 +20,6 @@ const selectedApplicationId = ref(null)
 const checklistItems = ref([])
 const isLoadingChecklist = ref(false)
 const checklistError = ref('')
-const updatingChecklistItemId = ref(null)
 const documents = ref([])
 const documentError = ref('')
 const documentMessage = ref('')
@@ -31,6 +30,7 @@ const analyzingApplicationId = ref(null)
 const analysisError = ref('')
 const deletingApplicationId = ref(null)
 const deletionError = ref('')
+const pendingApplicationAction = ref(null)
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -86,27 +86,6 @@ async function toggleChecklist(applicationId) {
   } finally {
     isLoadingChecklist.value = false
   }
-}
-
-async function changeChecklistItem(item, completed) {
-  const previousValue = item.completed
-
-  item.completed = completed
-  updatingChecklistItemId.value = item.id
-  checklistError.value = ''
-
-  try {
-    const updatedItem = await updateChecklistItem(item.id, completed)
-    Object.assign(item, updatedItem)
-  } catch (error) {
-    item.completed = previousValue
-    checklistError.value = error.message
-    return
-  } finally {
-    updatingChecklistItemId.value = null
-  }
-
-  await loadApplications(false)
 }
 
 async function uploadDocument(applicationId, checklistItem, event) {
@@ -186,10 +165,25 @@ async function viewDocument(applicationId, document) {
   }
 }
 
-async function analyzeSelectedApplication(application) {
-  const confirmed = window.confirm(`Analyze ${application.processTitle} with AI?`)
+function requestApplicationAction(type, application) {
+  pendingApplicationAction.value = {
+    type,
+    application,
+  }
+}
 
-  if (!confirmed) {
+function cancelApplicationAction() {
+  if (analyzingApplicationId.value || deletingApplicationId.value) {
+    return
+  }
+
+  pendingApplicationAction.value = null
+}
+
+async function analyzeSelectedApplication() {
+  const application = pendingApplicationAction.value?.application
+
+  if (!application || pendingApplicationAction.value.type !== 'analyze') {
     return
   }
 
@@ -203,15 +197,14 @@ async function analyzeSelectedApplication(application) {
     analysisError.value = error.message
   } finally {
     analyzingApplicationId.value = null
+    pendingApplicationAction.value = null
   }
 }
 
-async function removeApplication(application) {
-  const confirmed = window.confirm(
-    `Delete ${application.processTitle}? This will permanently delete its checklist and uploaded documents.`,
-  )
+async function removeApplication() {
+  const application = pendingApplicationAction.value?.application
 
-  if (!confirmed) {
+  if (!application || pendingApplicationAction.value.type !== 'delete') {
     return
   }
 
@@ -234,6 +227,7 @@ async function removeApplication(application) {
     deletionError.value = error.message
   } finally {
     deletingApplicationId.value = null
+    pendingApplicationAction.value = null
   }
 }
 
@@ -352,7 +346,7 @@ onMounted(loadApplications)
               deletingApplicationId !== null ||
               !canAnalyze(application)
             "
-            @click="analyzeSelectedApplication(application)"
+            @click="requestApplicationAction('analyze', application)"
           >
             {{ analysisButtonLabel(application) }}
           </button>
@@ -365,7 +359,7 @@ onMounted(loadApplications)
               uploadingChecklistItemId !== null ||
               deletingDocumentId !== null
             "
-            @click="removeApplication(application)"
+            @click="requestApplicationAction('delete', application)"
           >
             {{ deletingApplicationId === application.id ? 'Deleting...' : 'Delete application' }}
           </button>
@@ -382,68 +376,70 @@ onMounted(loadApplications)
             This application does not have checklist items yet.
           </p>
 
-          <ul v-else class="checklist-list">
-            <li v-for="item in checklistItems" :key="item.id">
-              <label class="checklist-item-label">
-                <input
-                  type="checkbox"
-                  :checked="item.completed"
-                  :disabled="updatingChecklistItemId !== null || uploadingChecklistItemId !== null"
-                  @change="changeChecklistItem(item, $event.target.checked)"
-                />
-
-                <span>
-                  <strong>{{ item.title }}</strong>
-                  <small>{{ item.required ? 'Required' : 'Optional' }}</small>
-                </span>
-              </label>
-
-              <div class="document-area">
-                <label class="upload-label">
-                  <span>
-                    {{ uploadingChecklistItemId === item.id ? 'Uploading...' : 'Upload PDF' }}
-                  </span>
+          <template v-else>
+            <ul class="checklist-list">
+              <li v-for="item in checklistItems" :key="item.id">
+                <div class="checklist-item-label">
                   <input
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    :disabled="uploadingChecklistItemId !== null || deletingDocumentId !== null"
-                    @change="uploadDocument(application.id, item, $event)"
+                    type="checkbox"
+                    :checked="item.completed"
+                    disabled
+                    :aria-label="`${item.title}: ${item.completed ? 'complete' : 'incomplete'}`"
                   />
-                </label>
 
-                <ul v-if="documentsForChecklistItem(item.id).length > 0" class="document-list">
-                  <li v-for="document in documentsForChecklistItem(item.id)" :key="document.id">
-                    <div class="document-details">
-                      <span>{{ document.originalFilename }}</span>
-                      <small>{{ formatFileSize(document.sizeBytes) }}</small>
-                    </div>
+                  <span>
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.required ? 'Required' : 'Optional' }}</small>
+                  </span>
+                </div>
 
-                    <div class="document-actions">
-                      <button
-                        class="view-document-button"
-                        type="button"
-                        :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
-                        @click="viewDocument(application.id, document)"
-                      >
-                        {{ viewingDocumentId === document.id ? 'Opening...' : 'View PDF' }}
-                      </button>
+                <div class="document-area">
+                  <label class="upload-label">
+                    <span>
+                      {{ uploadingChecklistItemId === item.id ? 'Uploading...' : 'Upload PDF' }}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      :disabled="uploadingChecklistItemId !== null || deletingDocumentId !== null"
+                      @change="uploadDocument(application.id, item, $event)"
+                    />
+                  </label>
 
-                      <button
-                        class="delete-document-button"
-                        type="button"
-                        :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
-                        @click="removeDocument(application.id, document)"
-                      >
-                        {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
-                      </button>
-                    </div>
-                  </li>
-                </ul>
+                  <ul v-if="documentsForChecklistItem(item.id).length > 0" class="document-list">
+                    <li v-for="document in documentsForChecklistItem(item.id)" :key="document.id">
+                      <div class="document-details">
+                        <span>{{ document.originalFilename }}</span>
+                        <small>{{ formatFileSize(document.sizeBytes) }}</small>
+                      </div>
 
-                <small v-else class="no-documents">No PDF uploaded yet.</small>
-              </div>
-            </li>
-          </ul>
+                      <div class="document-actions">
+                        <button
+                          class="view-document-button"
+                          type="button"
+                          :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
+                          @click="viewDocument(application.id, document)"
+                        >
+                          {{ viewingDocumentId === document.id ? 'Opening...' : 'View PDF' }}
+                        </button>
+
+                        <button
+                          class="delete-document-button"
+                          type="button"
+                          :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
+                          @click="removeDocument(application.id, document)"
+                        >
+                          {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
+                        </button>
+                      </div>
+                    </li>
+                  </ul>
+
+                  <small v-else class="no-documents">No PDF uploaded yet.</small>
+                </div>
+              </li>
+            </ul>
+          </template>
 
           <p v-if="documentError" class="feedback error" role="alert">
             {{ documentError }}
@@ -455,6 +451,35 @@ onMounted(loadApplications)
         </div>
       </li>
     </ul>
+
+    <ActionConfirmation
+      :open="pendingApplicationAction?.type === 'analyze'"
+      title="Analyze this application with AI?"
+      description="AmtPilot will start AI analysis using this application’s checklist and uploaded documents."
+      item-label="Application"
+      :item-name="pendingApplicationAction?.application.processTitle"
+      confirm-label="Analyze with AI"
+      pending-label="Starting analysis..."
+      :pending="analyzingApplicationId !== null"
+      icon="✦"
+      @cancel="cancelApplicationAction"
+      @confirm="analyzeSelectedApplication"
+    />
+
+    <ActionConfirmation
+      :open="pendingApplicationAction?.type === 'delete'"
+      title="Delete this application?"
+      description="This permanently deletes the application, its checklist progress, and all uploaded documents. This cannot be undone."
+      item-label="Application"
+      :item-name="pendingApplicationAction?.application.processTitle"
+      confirm-label="Delete application"
+      pending-label="Deleting..."
+      :pending="deletingApplicationId !== null"
+      tone="danger"
+      icon="!"
+      @cancel="cancelApplicationAction"
+      @confirm="removeApplication"
+    />
   </section>
 </template>
 
@@ -609,13 +634,14 @@ onMounted(loadApplications)
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  cursor: pointer;
 }
 
 .checklist-list input {
+  accent-color: #2563eb;
   width: 1rem;
   height: 1rem;
   margin-top: 0.15rem;
+  opacity: 1;
 }
 
 .checklist-list strong,

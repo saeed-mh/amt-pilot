@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import DashboardView from '@/views/DashboardView.vue'
 import LoginView from '@/views/LoginView.vue'
+import ProcessesView from '@/views/ProcessesView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 import SignupView from '@/views/SignupView.vue'
 
 const router = createRouter({
@@ -25,6 +27,22 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: DashboardView,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/processes',
+      name: 'processes',
+      component: ProcessesView,
+      meta: {
+        requiresAuth: true,
+      },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: SettingsView,
       meta: {
         requiresAuth: true,
       },
