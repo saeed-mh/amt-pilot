@@ -13,6 +13,8 @@ import {
   uploadApplicationDocument,
 } from '@/services/application'
 
+const emit = defineEmits(['applications-changed'])
+
 const applications = ref([])
 const isLoading = ref(true)
 const errorMessage = ref('')
@@ -214,6 +216,7 @@ async function removeApplication() {
   try {
     await deleteApplication(application.id)
     applications.value = applications.value.filter((item) => item.id !== application.id)
+    emit('applications-changed')
 
     if (selectedApplicationId.value === application.id) {
       selectedApplicationId.value = null

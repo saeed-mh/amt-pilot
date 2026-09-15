@@ -2,6 +2,7 @@ package com.amtpilot.common.web;
 
 import java.util.UUID;
 
+import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.DocumentNotFoundException;
 import com.amtpilot.application.exception.DocumentStorageException;
@@ -129,6 +130,25 @@ class GlobalExceptionHandlerTest {
         }
 
         @Test
+        void returnsActiveApplicationAlreadyExistsError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/active-application-already-exists"))
+                                .andExpect(status().isConflict())
+                                .andExpect(header().exists(
+                                                TraceIdFilter.TRACE_ID_HEADER))
+                                .andExpect(jsonPath("$.success").value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("ACTIVE_APPLICATION_ALREADY_EXISTS"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "You already have an active application "
+                                                                                + "for Address Registration."))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
         void returnsChecklistItemNotFoundError() throws Exception {
                 MvcResult result = mockMvc.perform(
                                 get("/test/checklist-item-not-found"))
@@ -235,6 +255,12 @@ class GlobalExceptionHandlerTest {
                         throw new InvalidApplicationStatusTransitionException(
                                         ApplicationStatus.DRAFT,
                                         ApplicationStatus.COMPLETED);
+                }
+
+                @GetMapping("/test/active-application-already-exists")
+                void activeApplicationAlreadyExists() {
+                        throw new ActiveApplicationAlreadyExistsException(
+                                        "Address Registration");
                 }
 
                 @GetMapping("/test/checklist-item-not-found")

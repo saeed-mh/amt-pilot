@@ -11,6 +11,7 @@ import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.dto.UpdateChecklistItemRequest;
+import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
@@ -70,6 +71,17 @@ public class ApplicationService {
 
                 if (!process.isActive()) {
                         throw new ProcessNotFoundException(request.processId());
+                }
+
+                boolean hasActiveApplication = applicationRepository
+                                .existsByUserIdAndProcessIdAndStatusNot(
+                                                userId,
+                                                process.getId(),
+                                                ApplicationStatus.COMPLETED);
+
+                if (hasActiveApplication) {
+                        throw new ActiveApplicationAlreadyExistsException(
+                                        process.getTitle());
                 }
 
                 Application application = new Application(user, process);

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 
+import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.DocumentNotFoundException;
@@ -144,6 +145,20 @@ public class GlobalExceptionHandler {
 
                 ApiError error = new ApiError(
                                 "INVALID_STATUS_TRANSITION",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(ActiveApplicationAlreadyExistsException.class)
+        ResponseEntity<ApiResponse<Void>> handleActiveApplicationAlreadyExists(
+                        ActiveApplicationAlreadyExistsException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "ACTIVE_APPLICATION_ALREADY_EXISTS",
                                 exception.getMessage(),
                                 Map.of());
 

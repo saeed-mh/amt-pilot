@@ -10,6 +10,7 @@ const user = ref(null)
 const isLoading = ref(true)
 const loadError = ref('')
 const applicationsVersion = ref(0)
+const processesVersion = ref(0)
 
 async function loadProfile() {
   try {
@@ -23,6 +24,10 @@ async function loadProfile() {
 
 function refreshApplications() {
   applicationsVersion.value += 1
+}
+
+function refreshProcesses() {
+  processesVersion.value += 1
 }
 
 onMounted(loadProfile)
@@ -47,10 +52,16 @@ onMounted(loadProfile)
         {{ loadError }}
       </p>
 
-      <ApplicationList v-if="user" :key="applicationsVersion" class="application-section" />
+      <ApplicationList
+        v-if="user"
+        :key="applicationsVersion"
+        class="application-section"
+        @applications-changed="refreshProcesses"
+      />
 
       <ProcessList
         v-if="user"
+        :key="processesVersion"
         class="process-section"
         :city="user.city || 'Dortmund'"
         compact

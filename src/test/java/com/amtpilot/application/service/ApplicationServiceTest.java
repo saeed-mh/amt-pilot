@@ -17,6 +17,7 @@ import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.dto.UpdateChecklistItemRequest;
+import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.entity.Application;
@@ -156,6 +157,46 @@ class ApplicationServiceTest {
                                 registrationForm,
                                 checklistItems.get(1).getRequirement());
                 assertFalse(checklistItems.get(1).isCompleted());
+        }
+
+        @Test
+        void rejectsSecondActiveApplicationForSameProcess() {
+                UUID userId = UUID.randomUUID();
+                UUID processId = UUID.randomUUID();
+
+                User user = new User(
+                                "student@example.com",
+                                "hashed-password");
+
+                ProcessDefinition process = org.mockito.Mockito.mock(ProcessDefinition.class);
+
+                when(userRepository.findById(userId))
+                                .thenReturn(Optional.of(user));
+                when(processRepository.findById(processId))
+                                .thenReturn(Optional.of(process));
+                when(process.isActive()).thenReturn(true);
+                when(process.getId()).thenReturn(processId);
+                when(process.getTitle()).thenReturn("Address Registration");
+                when(applicationRepository
+                                .existsByUserIdAndProcessIdAndStatusNot(
+                                                userId,
+                                                processId,
+                                                ApplicationStatus.COMPLETED))
+                                .thenReturn(true);
+
+                CreateApplicationRequest request = new CreateApplicationRequest(processId);
+
+                ActiveApplicationAlreadyExistsException exception = assertThrows(
+                                ActiveApplicationAlreadyExistsException.class,
+                                () -> applicationService.create(userId, request));
+
+                assertEquals(
+                                "You already have an active application for Address Registration.",
+                                exception.getMessage());
+
+                verify(applicationRepository, never())
+                                .saveAndFlush(any(Application.class));
+                verify(checklistRepository, never()).saveAll(any());
         }
 
         @Test

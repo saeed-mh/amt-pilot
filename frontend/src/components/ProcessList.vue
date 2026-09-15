@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import ActionConfirmation from '@/components/ActionConfirmation.vue'
-import { createApplication } from '@/services/application'
+import { createApplication, getApplications } from '@/services/application'
 import { getProcesses, getProcessRequirements } from '@/services/process'
 
 const emit = defineEmits(['application-created'])
@@ -19,6 +19,7 @@ const props = defineProps({
 })
 
 const processes = ref([])
+const activeProcessIds = ref(new Set())
 const searchQuery = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -84,9 +85,20 @@ async function loadProcesses() {
   searchQuery.value = ''
 
   try {
-    processes.value = await getProcesses(props.city || 'Dortmund')
+    const [loadedProcesses, loadedApplications] = await Promise.all([
+      getProcesses(props.city || 'Dortmund'),
+      getApplications(),
+    ])
+
+    processes.value = loadedProcesses
+    activeProcessIds.value = new Set(
+      loadedApplications
+        .filter((application) => application.status !== 'COMPLETED')
+        .map((application) => application.processId),
+    )
   } catch (error) {
     processes.value = []
+    activeProcessIds.value = new Set()
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
@@ -94,7 +106,23 @@ async function loadProcesses() {
 }
 
 function requestApplicationStart(process) {
+  if (hasActiveApplication(process.id)) {
+    return
+  }
+
   pendingProcess.value = process
+}
+
+function hasActiveApplication(processId) {
+  return activeProcessIds.value.has(processId)
+}
+
+function startButtonLabel(process) {
+  if (hasActiveApplication(process.id)) {
+    return 'Application already started'
+  }
+
+  return creatingProcessId.value === process.id ? 'Creating...' : 'Start application'
 }
 
 function cancelApplicationStart() {
@@ -118,6 +146,7 @@ async function confirmApplicationStart() {
 
   try {
     const application = await createApplication(process.id)
+    activeProcessIds.value = new Set([...activeProcessIds.value, application.processId])
     showApplicationToast(process.title)
     emit('application-created', application)
   } catch (error) {
@@ -217,10 +246,10 @@ onBeforeUnmount(dismissApplicationToast)
           <button
             class="start-button"
             type="button"
-            :disabled="creatingProcessId !== null"
+            :disabled="creatingProcessId !== null || hasActiveApplication(process.id)"
             @click="requestApplicationStart(process)"
           >
-            {{ creatingProcessId === process.id ? 'Creating...' : 'Start application' }}
+            {{ startButtonLabel(process) }}
           </button>
         </div>
 

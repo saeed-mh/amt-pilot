@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.amtpilot.entity.Application;
+import com.amtpilot.enums.ApplicationStatus;
 
 public interface ApplicationRepository
         extends JpaRepository<Application, UUID> {
@@ -16,4 +17,9 @@ public interface ApplicationRepository
     Optional<Application> findByIdAndUserId(
             UUID applicationId,
             UUID userId);
+
+    boolean existsByUserIdAndProcessIdAndStatusNot(
+            UUID userId,
+            UUID processId,
+            ApplicationStatus status);
 }
