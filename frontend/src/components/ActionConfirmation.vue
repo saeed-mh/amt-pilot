@@ -1,6 +1,8 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 
+import { t } from '@/i18n'
+
 const emit = defineEmits(['cancel', 'confirm'])
 
 const props = defineProps({
@@ -93,7 +95,7 @@ watch(
 
         <div class="confirmation-actions">
           <button class="cancel-button" type="button" :disabled="pending" @click="cancel">
-            Cancel
+            {{ t('common.cancel') }}
           </button>
           <button
             class="confirm-button"

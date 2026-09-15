@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { t } from '@/i18n'
 import { loginUser } from '@/services/auth'
 
 const router = useRouter()
@@ -35,18 +37,21 @@ async function handleSubmit() {
 <template>
   <main class="auth-page">
     <section class="auth-card">
-      <div class="brand">AmtPilot</div>
+      <div class="brand-row">
+        <div class="brand">AmtPilot</div>
+        <LanguageSwitcher />
+      </div>
 
-      <h1>Welcome back</h1>
-      <p class="subtitle">Log in to continue with your applications.</p>
+      <h1>{{ t('login.title') }}</h1>
+      <p class="subtitle">{{ t('login.subtitle') }}</p>
 
       <form @submit.prevent="handleSubmit">
-        <label for="email">Email</label>
+        <label for="email">{{ t('auth.email') }}</label>
         <input
           id="email"
           v-model="email"
           type="email"
-          placeholder="you@example.com"
+          :placeholder="t('auth.emailPlaceholder')"
           autocomplete="email"
           required
         />
@@ -54,12 +59,12 @@ async function handleSubmit() {
           {{ fieldErrors.email }}
         </p>
 
-        <label for="password">Password</label>
+        <label for="password">{{ t('auth.password') }}</label>
         <input
           id="password"
           v-model="password"
           type="password"
-          placeholder="Your password"
+          :placeholder="t('login.passwordPlaceholder')"
           autocomplete="current-password"
           required
         />
@@ -68,7 +73,7 @@ async function handleSubmit() {
         </p>
 
         <button type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Logging in...' : 'Log in' }}
+          {{ isSubmitting ? t('login.submitting') : t('login.submit') }}
         </button>
       </form>
 
@@ -77,8 +82,8 @@ async function handleSubmit() {
       </p>
 
       <p class="signup-link">
-        Don't have an account?
-        <RouterLink to="/signup">Create one</RouterLink>
+        {{ t('login.noAccount') }}
+        <RouterLink to="/signup">{{ t('login.createAccount') }}</RouterLink>
       </p>
     </section>
   </main>
@@ -104,8 +109,14 @@ async function handleSubmit() {
   box-shadow: 0 12px 30px rgb(15 23 42 / 8%);
 }
 
-.brand {
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
+}
+
+.brand {
   color: #2563eb;
   font-size: 20px;
   font-weight: 700;

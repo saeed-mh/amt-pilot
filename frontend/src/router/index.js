@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import AboutView from '@/views/AboutView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProcessesView from '@/views/ProcessesView.vue'
@@ -9,6 +10,11 @@ import SignupView from '@/views/SignupView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/about',
+      name: 'about',
+      component: AboutView,
+    },
     {
       path: '/',
       redirect: '/dashboard',
@@ -48,6 +54,16 @@ const router = createRouter({
       },
     },
   ],
+  scrollBehavior(to) {
+    if (to.hash) {
+      return {
+        el: to.hash,
+        behavior: 'smooth',
+      }
+    }
+
+    return { top: 0 }
+  },
 })
 
 router.beforeEach((to) => {

@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue'
 
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { t } from '@/i18n'
 import { registerUser } from '@/services/auth'
 
 const email = ref('')
@@ -19,7 +21,7 @@ async function handleSubmit() {
   try {
     await registerUser(email.value, password.value)
 
-    successMessage.value = 'Account created successfully. You can now log in.'
+    successMessage.value = t('signup.success')
 
     password.value = ''
   } catch (error) {
@@ -34,18 +36,21 @@ async function handleSubmit() {
 <template>
   <main class="auth-page">
     <section class="auth-card">
-      <div class="brand">AmtPilot</div>
+      <div class="brand-row">
+        <div class="brand">AmtPilot</div>
+        <LanguageSwitcher />
+      </div>
 
-      <h1>Create your account</h1>
-      <p class="subtitle">Start organizing your administrative processes.</p>
+      <h1>{{ t('signup.title') }}</h1>
+      <p class="subtitle">{{ t('signup.subtitle') }}</p>
 
       <form @submit.prevent="handleSubmit">
-        <label for="email">Email</label>
+        <label for="email">{{ t('auth.email') }}</label>
         <input
           id="email"
           v-model="email"
           type="email"
-          placeholder="you@example.com"
+          :placeholder="t('auth.emailPlaceholder')"
           autocomplete="email"
           required
         />
@@ -53,12 +58,12 @@ async function handleSubmit() {
           {{ fieldErrors.email }}
         </p>
 
-        <label for="password">Password</label>
+        <label for="password">{{ t('auth.password') }}</label>
         <input
           id="password"
           v-model="password"
           type="password"
-          placeholder="At least 8 characters"
+          :placeholder="t('signup.passwordPlaceholder')"
           autocomplete="new-password"
           minlength="8"
           required
@@ -68,7 +73,7 @@ async function handleSubmit() {
         </p>
 
         <button type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Creating account...' : 'Create account' }}
+          {{ isSubmitting ? t('signup.submitting') : t('signup.submit') }}
         </button>
       </form>
 
@@ -81,8 +86,8 @@ async function handleSubmit() {
       </p>
 
       <p class="login-link">
-        Already have an account?
-        <RouterLink to="/login">Log in</RouterLink>
+        {{ t('signup.hasAccount') }}
+        <RouterLink to="/login">{{ t('signup.login') }}</RouterLink>
       </p>
     </section>
   </main>
@@ -108,8 +113,14 @@ async function handleSubmit() {
   box-shadow: 0 12px 30px rgb(15 23 42 / 8%);
 }
 
-.brand {
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 24px;
+}
+
+.brand {
   color: #2563eb;
   font-size: 20px;
   font-weight: 700;

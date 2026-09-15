@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppHeader from '@/components/AppHeader.vue'
+import { setLocale, t, translateCode } from '@/i18n'
 import { getCurrentUser, updateCurrentUser } from '@/services/user'
 
 const router = useRouter()
@@ -54,7 +55,10 @@ async function saveProfile() {
     })
 
     fillProfileForm(user.value)
-    successMessage.value = 'Profile updated successfully.'
+    if (['en', 'de'].includes(user.value.preferredLanguage)) {
+      setLocale(user.value.preferredLanguage)
+    }
+    successMessage.value = t('settings.saved')
   } catch (error) {
     saveError.value = error.message
     fieldErrors.value = error.fieldErrors || {}
@@ -77,13 +81,15 @@ onMounted(loadProfile)
       <AppHeader :email="user?.email" />
 
       <section class="settings-intro">
-        <RouterLink class="back-link" to="/dashboard">Back to dashboard</RouterLink>
-        <p class="eyebrow">Account</p>
-        <h1>User settings</h1>
-        <p>Manage the information AmtPilot uses to personalize your guidance.</p>
+        <RouterLink class="back-link" to="/dashboard">
+          {{ t('common.backToDashboard') }}
+        </RouterLink>
+        <p class="eyebrow">{{ t('settings.eyebrow') }}</p>
+        <h1>{{ t('settings.title') }}</h1>
+        <p>{{ t('settings.description') }}</p>
       </section>
 
-      <p v-if="isLoading" class="status-message">Loading your settings...</p>
+      <p v-if="isLoading" class="status-message">{{ t('settings.loading') }}</p>
 
       <p v-else-if="loadError" class="status-message error" role="alert">
         {{ loadError }}
@@ -98,33 +104,33 @@ onMounted(loadProfile)
               </div>
 
               <div>
-                <p class="section-label">Personalization</p>
-                <h2>Your profile</h2>
+                <p class="section-label">{{ t('settings.personalization') }}</p>
+                <h2>{{ t('settings.profile') }}</h2>
                 <p class="profile-description">
-                  These details help AmtPilot recommend information that fits your situation.
+                  {{ t('settings.profileDescription') }}
                 </p>
               </div>
             </div>
 
-            <span class="role-badge">{{ user.role }}</span>
+            <span class="role-badge">{{ translateCode('role', user.role, user.role) }}</span>
           </div>
 
           <div class="account-email">
             <div>
-              <span>Email address</span>
+              <span>{{ t('settings.email') }}</span>
               <strong>{{ user.email }}</strong>
             </div>
-            <small>Your sign-in email cannot be changed here.</small>
+            <small>{{ t('settings.emailHint') }}</small>
           </div>
 
           <form class="profile-form" @submit.prevent="saveProfile">
             <fieldset>
-              <legend>About you</legend>
-              <p class="fieldset-description">Used to make process guidance more relevant.</p>
+              <legend>{{ t('settings.aboutYou') }}</legend>
+              <p class="fieldset-description">{{ t('settings.aboutDescription') }}</p>
 
               <div class="form-grid">
                 <label for="profile-city">
-                  <span>City</span>
+                  <span>{{ t('settings.city') }}</span>
                   <input
                     id="profile-city"
                     v-model="profileForm.city"
@@ -138,13 +144,13 @@ onMounted(loadProfile)
                 </label>
 
                 <label for="profile-country">
-                  <span>Country of origin</span>
+                  <span>{{ t('settings.country') }}</span>
                   <input
                     id="profile-country"
                     v-model="profileForm.countryOfOrigin"
                     autocomplete="country-name"
                     maxlength="120"
-                    placeholder="For example, Germany"
+                    :placeholder="t('settings.countryPlaceholder')"
                   />
                   <small v-if="fieldErrors.countryOfOrigin" class="field-error">
                     {{ fieldErrors.countryOfOrigin }}
@@ -152,19 +158,21 @@ onMounted(loadProfile)
                 </label>
 
                 <label for="profile-user-type" class="full-width">
-                  <span>Current situation</span>
+                  <span>{{ t('settings.situation') }}</span>
                   <input
                     id="profile-user-type"
                     v-model="profileForm.userType"
                     list="user-type-options"
                     maxlength="40"
-                    placeholder="For example, international student"
+                    :placeholder="t('settings.situationPlaceholder')"
                   />
                   <datalist id="user-type-options">
-                    <option value="International student"></option>
-                    <option value="Employee"></option>
-                    <option value="Job seeker"></option>
-                    <option value="Family member"></option>
+                    <option value="International student">
+                      {{ t('profile.internationalStudent') }}
+                    </option>
+                    <option value="Employee">{{ t('profile.employee') }}</option>
+                    <option value="Job seeker">{{ t('profile.jobSeeker') }}</option>
+                    <option value="Family member">{{ t('profile.familyMember') }}</option>
                   </datalist>
                   <small v-if="fieldErrors.userType" class="field-error">
                     {{ fieldErrors.userType }}
@@ -174,12 +182,12 @@ onMounted(loadProfile)
             </fieldset>
 
             <fieldset>
-              <legend>Preferences</legend>
-              <p class="fieldset-description">Choose how information should be presented.</p>
+              <legend>{{ t('settings.preferences') }}</legend>
+              <p class="fieldset-description">{{ t('settings.preferencesDescription') }}</p>
 
               <div class="form-grid">
                 <label for="profile-language">
-                  <span>Preferred language</span>
+                  <span>{{ t('settings.preferredLanguage') }}</span>
                   <input
                     id="profile-language"
                     v-model="profileForm.preferredLanguage"
@@ -188,8 +196,8 @@ onMounted(loadProfile)
                     placeholder="en"
                   />
                   <datalist id="language-options">
-                    <option value="en">English</option>
-                    <option value="de">German</option>
+                    <option value="en">{{ t('language.english') }}</option>
+                    <option value="de">{{ t('language.german') }}</option>
                   </datalist>
                   <small v-if="fieldErrors.preferredLanguage" class="field-error">
                     {{ fieldErrors.preferredLanguage }}
@@ -197,7 +205,7 @@ onMounted(loadProfile)
                 </label>
 
                 <label for="profile-timezone">
-                  <span>Timezone</span>
+                  <span>{{ t('settings.timezone') }}</span>
                   <input
                     id="profile-timezone"
                     v-model="profileForm.timezone"
@@ -227,7 +235,7 @@ onMounted(loadProfile)
               </div>
 
               <button class="save-button" type="submit" :disabled="isSaving">
-                {{ isSaving ? 'Saving...' : 'Save changes' }}
+                {{ isSaving ? t('settings.saving') : t('settings.save') }}
               </button>
             </div>
           </form>
@@ -235,11 +243,13 @@ onMounted(loadProfile)
 
         <section class="session-card">
           <div>
-            <h2>Session</h2>
-            <p>Sign out of your AmtPilot account on this browser.</p>
+            <h2>{{ t('settings.session') }}</h2>
+            <p>{{ t('settings.sessionDescription') }}</p>
           </div>
 
-          <button class="logout-button" type="button" @click="logout">Log out</button>
+          <button class="logout-button" type="button" @click="logout">
+            {{ t('settings.logout') }}
+          </button>
         </section>
       </template>
     </section>

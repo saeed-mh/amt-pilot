@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import ApplicationList from '@/components/ApplicationList.vue'
 import ProcessList from '@/components/ProcessList.vue'
+import { t } from '@/i18n'
 import { getCurrentUser } from '@/services/user'
 
 const user = ref(null)
@@ -39,14 +40,14 @@ onMounted(loadProfile)
       <AppHeader :email="user?.email" />
 
       <section class="welcome">
-        <p class="eyebrow">Dashboard</p>
+        <p class="eyebrow">{{ t('dashboard.eyebrow') }}</p>
         <h1>
-          {{ user ? `Welcome, ${user.email}` : 'Welcome to AmtPilot' }}
+          {{ user ? t('dashboard.welcome', { email: user.email }) : t('dashboard.welcomeDefault') }}
         </h1>
-        <p>Manage your applications and find administrative processes relevant to your city.</p>
+        <p>{{ t('dashboard.description') }}</p>
       </section>
 
-      <p v-if="isLoading" class="status-message">Loading your profile...</p>
+      <p v-if="isLoading" class="status-message">{{ t('dashboard.loadingProfile') }}</p>
 
       <p v-else-if="loadError" class="status-message error" role="alert">
         {{ loadError }}

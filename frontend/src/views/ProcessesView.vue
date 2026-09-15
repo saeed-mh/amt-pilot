@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import AppHeader from '@/components/AppHeader.vue'
 import ProcessList from '@/components/ProcessList.vue'
+import { t } from '@/i18n'
 import { getCurrentUser } from '@/services/user'
 
 const user = ref(null)
@@ -28,13 +29,15 @@ onMounted(loadProfile)
       <AppHeader :email="user?.email" />
 
       <section class="page-intro">
-        <RouterLink class="back-link" to="/dashboard">Back to dashboard</RouterLink>
-        <p class="eyebrow">Process catalog</p>
-        <h1>Browse all processes</h1>
-        <p>Search for the administrative process that matches what you need to do.</p>
+        <RouterLink class="back-link" to="/dashboard">
+          {{ t('common.backToDashboard') }}
+        </RouterLink>
+        <p class="eyebrow">{{ t('processes.eyebrow') }}</p>
+        <h1>{{ t('processes.title') }}</h1>
+        <p>{{ t('processes.description') }}</p>
       </section>
 
-      <p v-if="isLoading" class="status-message">Loading processes...</p>
+      <p v-if="isLoading" class="status-message">{{ t('processes.loading') }}</p>
 
       <p v-else-if="loadError" class="status-message error" role="alert">
         {{ loadError }}

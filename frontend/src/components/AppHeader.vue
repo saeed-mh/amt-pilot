@@ -1,6 +1,9 @@
 <script setup>
 import { computed } from 'vue'
 
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { t } from '@/i18n'
+
 const props = defineProps({
   email: {
     type: String,
@@ -15,14 +18,18 @@ const userInitial = computed(() => props.email.trim().charAt(0).toUpperCase() ||
   <header class="app-header">
     <RouterLink class="brand" to="/dashboard">AmtPilot</RouterLink>
 
-    <RouterLink
-      class="settings-link"
-      to="/settings"
-      aria-label="Open user settings"
-      title="User settings"
-    >
-      {{ userInitial }}
-    </RouterLink>
+    <div class="header-actions">
+      <LanguageSwitcher />
+
+      <RouterLink
+        class="settings-link"
+        to="/settings"
+        :aria-label="t('header.settings')"
+        :title="t('settings.title')"
+      >
+        {{ userInitial }}
+      </RouterLink>
+    </div>
   </header>
 </template>
 
@@ -42,6 +49,12 @@ const userInitial = computed(() => props.email.trim().charAt(0).toUpperCase() ||
   font-size: 20px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .settings-link {

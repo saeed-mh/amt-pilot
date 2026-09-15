@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import ActionConfirmation from '@/components/ActionConfirmation.vue'
+import { t, translateCode } from '@/i18n'
 import { createApplication, getApplications } from '@/services/application'
 import { getProcesses, getProcessRequirements } from '@/services/process'
 
@@ -41,9 +42,15 @@ const filteredProcesses = computed(() => {
   }
 
   return processes.value.filter((process) =>
-    [process.title, process.code, process.domain, process.authorityName].some((value) =>
-      value?.toLowerCase().includes(query),
-    ),
+    [
+      process.title,
+      processTitle(process),
+      process.code,
+      process.domain,
+      processDomain(process.domain),
+      process.authorityName,
+      authorityName(process.authorityName),
+    ].some((value) => value?.toLowerCase().includes(query)),
   )
 })
 
@@ -66,7 +73,7 @@ function dismissApplicationToast() {
 
 function showApplicationToast(processTitle) {
   dismissApplicationToast()
-  applicationMessage.value = `“${processTitle}” was added to My applications.`
+  applicationMessage.value = t('catalog.createdMessage', { title: processTitle })
 
   applicationToastTimer = window.setTimeout(() => {
     applicationMessage.value = ''
@@ -119,10 +126,26 @@ function hasActiveApplication(processId) {
 
 function startButtonLabel(process) {
   if (hasActiveApplication(process.id)) {
-    return 'Application already started'
+    return t('catalog.alreadyStarted')
   }
 
-  return creatingProcessId.value === process.id ? 'Creating...' : 'Start application'
+  return creatingProcessId.value === process.id ? t('catalog.starting') : t('catalog.start')
+}
+
+function processTitle(process) {
+  return translateCode('process', process.code, process.title)
+}
+
+function processDomain(domain) {
+  return translateCode('domain', domain, domain)
+}
+
+function authorityName(authority) {
+  return translateCode('authority', authority, authority)
+}
+
+function requirementTitle(requirement) {
+  return translateCode('requirement', requirement.code, requirement.title)
 }
 
 function cancelApplicationStart() {
@@ -147,7 +170,7 @@ async function confirmApplicationStart() {
   try {
     const application = await createApplication(process.id)
     activeProcessIds.value = new Set([...activeProcessIds.value, application.processId])
-    showApplicationToast(process.title)
+    showApplicationToast(processTitle(process))
     emit('application-created', application)
   } catch (error) {
     applicationError.value = error.message
@@ -190,23 +213,25 @@ onBeforeUnmount(dismissApplicationToast)
 
 <template>
   <section class="process-card">
-    <h2>Available processes</h2>
-    <p class="description">Administrative processes available in {{ city || 'Dortmund' }}.</p>
+    <h2>{{ t('catalog.title') }}</h2>
+    <p class="description">
+      {{ t('catalog.description', { city: city || 'Dortmund' }) }}
+    </p>
 
     <div class="catalog-tools">
       <label class="search-field" for="process-search">
-        <span>Search processes</span>
+        <span>{{ t('catalog.search') }}</span>
         <input
           id="process-search"
           v-model="searchQuery"
           type="search"
-          placeholder="Try residence permit or passport"
+          :placeholder="t('catalog.searchPlaceholder')"
           :disabled="isLoading"
         />
       </label>
 
       <RouterLink v-if="compact" class="browse-link" to="/processes">
-        Browse all processes
+        {{ t('catalog.browseAll') }}
       </RouterLink>
     </div>
 
@@ -214,23 +239,25 @@ onBeforeUnmount(dismissApplicationToast)
       {{ applicationError }}
     </p>
 
-    <p v-if="isLoading">Loading processes...</p>
+    <p v-if="isLoading">{{ t('catalog.loading') }}</p>
     <p v-else-if="errorMessage" class="error" role="alert">
       {{ errorMessage }}
     </p>
 
-    <p v-else-if="processes.length === 0">No processes were found for this city.</p>
+    <p v-else-if="processes.length === 0">{{ t('catalog.none') }}</p>
 
     <p v-else-if="filteredProcesses.length === 0" class="empty-search">
-      No processes match “{{ searchQuery }}”.
+      {{ t('catalog.noMatch', { query: searchQuery }) }}
     </p>
 
     <ul v-else class="process-list">
       <li v-for="process in visibleProcesses" :key="process.id">
         <div class="process-summary">
-          <h3>{{ process.title }}</h3>
-          <p>{{ process.domain }}</p>
-          <small>Provided by {{ process.authorityName }}</small>
+          <h3>{{ processTitle(process) }}</h3>
+          <p>{{ processDomain(process.domain) }}</p>
+          <small>
+            {{ t('catalog.providedBy', { authority: authorityName(process.authorityName) }) }}
+          </small>
         </div>
 
         <div class="process-actions">
@@ -240,7 +267,11 @@ onBeforeUnmount(dismissApplicationToast)
             :aria-expanded="selectedProcessId === process.id"
             @click="toggleRequirements(process)"
           >
-            {{ selectedProcessId === process.id ? 'Hide requirements' : 'View requirements' }}
+            {{
+              selectedProcessId === process.id
+                ? t('catalog.hideRequirements')
+                : t('catalog.showRequirements')
+            }}
           </button>
 
           <button
@@ -254,19 +285,21 @@ onBeforeUnmount(dismissApplicationToast)
         </div>
 
         <div v-if="selectedProcessId === process.id" class="requirements">
-          <p v-if="isLoadingRequirements">Loading requirements...</p>
+          <p v-if="isLoadingRequirements">{{ t('catalog.loadingRequirements') }}</p>
 
           <p v-else-if="requirementsError" class="error" role="alert">
             {{ requirementsError }}
           </p>
 
-          <p v-else-if="requirements.length === 0">No requirements have been added yet.</p>
+          <p v-else-if="requirements.length === 0">{{ t('catalog.noRequirements') }}</p>
 
           <ul v-else class="requirements-list">
             <li v-for="requirement in requirements" :key="requirement.id">
               <div>
-                <strong>{{ requirement.title }}</strong>
-                <small>{{ requirement.required ? 'Required' : 'Optional' }}</small>
+                <strong>{{ requirementTitle(requirement) }}</strong>
+                <small>
+                  {{ requirement.required ? t('common.required') : t('common.optional') }}
+                </small>
               </div>
 
               <a
@@ -275,7 +308,7 @@ onBeforeUnmount(dismissApplicationToast)
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Official source
+                {{ t('catalog.officialSource') }}
               </a>
             </li>
           </ul>
@@ -285,12 +318,12 @@ onBeforeUnmount(dismissApplicationToast)
 
     <ActionConfirmation
       :open="pendingProcess !== null"
-      title="Start a new application?"
-      description="AmtPilot will create an application and prepare its checklist for you."
-      item-label="Selected process"
-      :item-name="pendingProcess?.title"
-      confirm-label="Start application"
-      pending-label="Starting..."
+      :title="t('catalog.confirmTitle')"
+      :description="t('catalog.confirmDescription')"
+      :item-label="t('catalog.selectedProcess')"
+      :item-name="pendingProcess ? processTitle(pendingProcess) : ''"
+      :confirm-label="t('catalog.start')"
+      :pending-label="t('catalog.pendingStart')"
       :pending="creatingProcessId !== null"
       @cancel="cancelApplicationStart"
       @confirm="confirmApplicationStart"
@@ -302,14 +335,14 @@ onBeforeUnmount(dismissApplicationToast)
           <span class="toast-icon" aria-hidden="true">✓</span>
 
           <div class="toast-content">
-            <strong>Application created</strong>
+            <strong>{{ t('catalog.created') }}</strong>
             <span>{{ applicationMessage }}</span>
           </div>
 
           <button
             class="toast-close"
             type="button"
-            aria-label="Close notification"
+            :aria-label="t('catalog.closeNotification')"
             @click="dismissApplicationToast"
           >
             ×

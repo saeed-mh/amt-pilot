@@ -1,5 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
+
+import { t, translateCode } from '@/i18n'
 import { getAuthorities } from '@/services/authority'
 
 const props = defineProps({
@@ -36,18 +38,20 @@ watch(
 
 <template>
   <section class="authority-card">
-    <h2>Authorities in {{ city || 'Dortmund' }}</h2>
+    <h2>{{ t('authorities.title', { city: city || 'Dortmund' }) }}</h2>
 
-    <p v-if="isLoading">Loading authorities...</p>
+    <p v-if="isLoading">{{ t('authorities.loading') }}</p>
     <p v-else-if="errorMessage" class="error">{{ errorMessage }}</p>
 
-    <p v-else-if="authorities.length === 0">No authorities were found for this city.</p>
+    <p v-else-if="authorities.length === 0">{{ t('authorities.none') }}</p>
 
     <ul v-else class="authority-list">
       <li v-for="authority in authorities" :key="authority.id">
         <div>
-          <h3>{{ authority.name }}</h3>
-          <p>{{ authority.authorityType }}</p>
+          <h3>{{ translateCode('authority', authority.name, authority.name) }}</h3>
+          <p>
+            {{ translateCode('authorityType', authority.authorityType, authority.authorityType) }}
+          </p>
         </div>
 
         <a
@@ -56,7 +60,7 @@ watch(
           target="_blank"
           rel="noopener noreferrer"
         >
-          Official website
+          {{ t('authorities.officialWebsite') }}
         </a>
       </li>
     </ul>

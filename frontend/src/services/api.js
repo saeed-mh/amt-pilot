@@ -1,3 +1,5 @@
+import { localizeApiError, t } from '@/i18n'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export async function apiRequest(
@@ -15,7 +17,7 @@ export async function apiRequest(
 
     if (!accessToken) {
       window.location.assign('/login')
-      throw new Error('Authentication is required')
+      throw new Error(t('api.authenticationRequired'))
     }
 
     headers.set('Authorization', `Bearer ${accessToken}`)
@@ -39,11 +41,11 @@ export async function apiRequest(
     localStorage.removeItem('amtpilot_access_token')
     window.location.assign('/login')
 
-    throw new Error('Your session has expired. Please log in again.')
+    throw new Error(t('api.sessionExpired'))
   }
 
   if (!response.ok) {
-    const error = new Error(body?.error?.message || 'Something went wrong')
+    const error = new Error(localizeApiError(body?.error?.code, body?.error?.message))
 
     error.code = body?.error?.code
     error.fieldErrors = body?.error?.fieldErrors || {}

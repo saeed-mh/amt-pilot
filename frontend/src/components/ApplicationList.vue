@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import ActionConfirmation from '@/components/ActionConfirmation.vue'
+import { locale, t, translateCode } from '@/i18n'
 import {
   analyzeApplication,
   deleteApplication,
@@ -106,7 +107,6 @@ async function uploadDocument(applicationId, checklistItem, event) {
 
     documents.value.unshift(uploadedDocument)
     checklistItem.completed = true
-    documentMessage.value = `${uploadedDocument.originalFilename} uploaded successfully.`
     await loadApplications(false)
   } catch (error) {
     documentError.value = error.message
@@ -117,7 +117,9 @@ async function uploadDocument(applicationId, checklistItem, event) {
 }
 
 async function removeDocument(applicationId, document) {
-  const confirmed = window.confirm(`Delete ${document.originalFilename}?`)
+  const confirmed = window.confirm(
+    t('applications.deleteDocumentConfirm', { filename: document.originalFilename }),
+  )
 
   if (!confirmed) {
     return
@@ -131,7 +133,9 @@ async function removeDocument(applicationId, document) {
     await deleteApplicationDocument(applicationId, document.id)
     documents.value = documents.value.filter((item) => item.id !== document.id)
     checklistItems.value = await getApplicationChecklist(applicationId)
-    documentMessage.value = `${document.originalFilename} deleted successfully.`
+    documentMessage.value = t('applications.documentDeleted', {
+      filename: document.originalFilename,
+    })
     await loadApplications(false)
   } catch (error) {
     documentError.value = error.message
@@ -144,7 +148,7 @@ async function viewDocument(applicationId, document) {
   const previewWindow = window.open('', '_blank')
 
   if (!previewWindow) {
-    documentError.value = 'Please allow pop-ups to view the PDF.'
+    documentError.value = t('applications.popupBlocked')
     return
   }
 
@@ -242,14 +246,26 @@ function canAnalyze(application) {
 
 function analysisButtonLabel(application) {
   if (analyzingApplicationId.value === application.id) {
-    return 'Starting analysis...'
+    return t('applications.startingAnalysis')
   }
 
   if (application.status === 'ANALYZING') {
-    return 'Analysis in progress'
+    return t('applications.analysisProgress')
   }
 
-  return 'Analyze with AI'
+  return t('applications.analyze')
+}
+
+function processTitle(application) {
+  return translateCode('process', application.processCode, application.processTitle)
+}
+
+function statusLabel(status) {
+  return translateCode('status', status, status)
+}
+
+function checklistItemTitle(item) {
+  return translateCode('requirement', item.requirementCode, item.title)
 }
 
 function documentsForChecklistItem(checklistItemId) {
@@ -270,10 +286,10 @@ function formatFileSize(sizeBytes) {
 
 function formatDate(value) {
   if (!value) {
-    return 'Recently created'
+    return t('applications.recentlyCreated')
   }
 
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', {
     dateStyle: 'medium',
   }).format(new Date(value))
 }
@@ -283,8 +299,8 @@ onMounted(loadApplications)
 
 <template>
   <section class="application-card">
-    <h2>My applications</h2>
-    <p class="description">Track the applications you have started.</p>
+    <h2>{{ t('applications.title') }}</h2>
+    <p class="description">{{ t('applications.description') }}</p>
 
     <p v-if="analysisError" class="feedback error" role="alert">
       {{ analysisError }}
@@ -294,34 +310,36 @@ onMounted(loadApplications)
       {{ deletionError }}
     </p>
 
-    <p v-if="isLoading">Loading applications...</p>
+    <p v-if="isLoading">{{ t('applications.loading') }}</p>
 
     <p v-else-if="errorMessage" class="error" role="alert">
       {{ errorMessage }}
     </p>
 
-    <p v-else-if="applications.length === 0">You have not started an application yet.</p>
+    <p v-else-if="applications.length === 0">{{ t('applications.empty') }}</p>
 
     <ul v-else class="application-list">
       <li v-for="application in applications" :key="application.id">
         <div class="application-heading">
           <div>
-            <h3>{{ application.processTitle }}</h3>
-            <small>Created {{ formatDate(application.createdAt) }}</small>
+            <h3>{{ processTitle(application) }}</h3>
+            <small>
+              {{ t('applications.created', { date: formatDate(application.createdAt) }) }}
+            </small>
           </div>
 
-          <span class="status">{{ application.status }}</span>
+          <span class="status">{{ statusLabel(application.status) }}</span>
         </div>
 
         <div class="progress-heading">
-          <span>Completeness</span>
+          <span>{{ t('applications.completeness') }}</span>
           <strong>{{ application.completeness }}%</strong>
         </div>
 
         <div
           class="progress-track"
           role="progressbar"
-          aria-label="Application completeness"
+          :aria-label="t('applications.completeness')"
           aria-valuemin="0"
           aria-valuemax="100"
           :aria-valuenow="application.completeness"
@@ -337,7 +355,11 @@ onMounted(loadApplications)
             :disabled="isLoadingChecklist || deletingApplicationId !== null"
             @click="toggleChecklist(application.id)"
           >
-            {{ selectedApplicationId === application.id ? 'Close checklist' : 'Open checklist' }}
+            {{
+              selectedApplicationId === application.id
+                ? t('applications.closeChecklist')
+                : t('applications.openChecklist')
+            }}
           </button>
 
           <button
@@ -364,19 +386,23 @@ onMounted(loadApplications)
             "
             @click="requestApplicationAction('delete', application)"
           >
-            {{ deletingApplicationId === application.id ? 'Deleting...' : 'Delete application' }}
+            {{
+              deletingApplicationId === application.id
+                ? t('common.deleting')
+                : t('applications.deleteApplication')
+            }}
           </button>
         </div>
 
         <div v-if="selectedApplicationId === application.id" class="checklist">
-          <p v-if="isLoadingChecklist">Loading checklist...</p>
+          <p v-if="isLoadingChecklist">{{ t('applications.loadingChecklist') }}</p>
 
           <p v-else-if="checklistError" class="error" role="alert">
             {{ checklistError }}
           </p>
 
           <p v-else-if="checklistItems.length === 0">
-            This application does not have checklist items yet.
+            {{ t('applications.emptyChecklist') }}
           </p>
 
           <template v-else>
@@ -387,19 +413,25 @@ onMounted(loadApplications)
                     type="checkbox"
                     :checked="item.completed"
                     disabled
-                    :aria-label="`${item.title}: ${item.completed ? 'complete' : 'incomplete'}`"
+                    :aria-label="`${checklistItemTitle(item)}: ${
+                      item.completed ? t('applications.complete') : t('applications.incomplete')
+                    }`"
                   />
 
                   <span>
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.required ? 'Required' : 'Optional' }}</small>
+                    <strong>{{ checklistItemTitle(item) }}</strong>
+                    <small>{{ item.required ? t('common.required') : t('common.optional') }}</small>
                   </span>
                 </div>
 
                 <div class="document-area">
                   <label class="upload-label">
                     <span>
-                      {{ uploadingChecklistItemId === item.id ? 'Uploading...' : 'Upload PDF' }}
+                      {{
+                        uploadingChecklistItemId === item.id
+                          ? t('applications.uploading')
+                          : t('applications.uploadPdf')
+                      }}
                     </span>
                     <input
                       type="file"
@@ -423,7 +455,11 @@ onMounted(loadApplications)
                           :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
                           @click="viewDocument(application.id, document)"
                         >
-                          {{ viewingDocumentId === document.id ? 'Opening...' : 'View PDF' }}
+                          {{
+                            viewingDocumentId === document.id
+                              ? t('applications.opening')
+                              : t('applications.viewPdf')
+                          }}
                         </button>
 
                         <button
@@ -432,13 +468,17 @@ onMounted(loadApplications)
                           :disabled="viewingDocumentId !== null || deletingDocumentId !== null"
                           @click="removeDocument(application.id, document)"
                         >
-                          {{ deletingDocumentId === document.id ? 'Deleting...' : 'Delete' }}
+                          {{
+                            deletingDocumentId === document.id
+                              ? t('common.deleting')
+                              : t('common.delete')
+                          }}
                         </button>
                       </div>
                     </li>
                   </ul>
 
-                  <small v-else class="no-documents">No PDF uploaded yet.</small>
+                  <small v-else class="no-documents">{{ t('applications.noPdf') }}</small>
                 </div>
               </li>
             </ul>
@@ -457,12 +497,14 @@ onMounted(loadApplications)
 
     <ActionConfirmation
       :open="pendingApplicationAction?.type === 'analyze'"
-      title="Analyze this application with AI?"
-      description="AmtPilot will start AI analysis using this application’s checklist and uploaded documents."
-      item-label="Application"
-      :item-name="pendingApplicationAction?.application.processTitle"
-      confirm-label="Analyze with AI"
-      pending-label="Starting analysis..."
+      :title="t('applications.analyzeConfirmTitle')"
+      :description="t('applications.analyzeConfirmDescription')"
+      :item-label="t('applications.application')"
+      :item-name="
+        pendingApplicationAction ? processTitle(pendingApplicationAction.application) : ''
+      "
+      :confirm-label="t('applications.analyze')"
+      :pending-label="t('applications.startingAnalysis')"
       :pending="analyzingApplicationId !== null"
       icon="✦"
       @cancel="cancelApplicationAction"
@@ -471,12 +513,14 @@ onMounted(loadApplications)
 
     <ActionConfirmation
       :open="pendingApplicationAction?.type === 'delete'"
-      title="Delete this application?"
-      description="This permanently deletes the application, its checklist progress, and all uploaded documents. This cannot be undone."
-      item-label="Application"
-      :item-name="pendingApplicationAction?.application.processTitle"
-      confirm-label="Delete application"
-      pending-label="Deleting..."
+      :title="t('applications.deleteConfirmTitle')"
+      :description="t('applications.deleteConfirmDescription')"
+      :item-label="t('applications.application')"
+      :item-name="
+        pendingApplicationAction ? processTitle(pendingApplicationAction.application) : ''
+      "
+      :confirm-label="t('applications.deleteApplication')"
+      :pending-label="t('common.deleting')"
       :pending="deletingApplicationId !== null"
       tone="danger"
       icon="!"
