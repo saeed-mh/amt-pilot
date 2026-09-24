@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     google_api_key: SecretStr
-    google_model: str = "gemini-2.5-flash"
+    google_model: str = "gemini-3.8-flash"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
