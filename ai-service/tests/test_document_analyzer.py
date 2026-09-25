@@ -1,8 +1,10 @@
 from unittest.mock import Mock, patch
 
 import pytest
+from langchain_core.exceptions import ModelAPIError
 
 from app.config import Settings
+from app.exceptions import DocumentAnalysisUnavailableError
 from app.schemas import DocumentAnalysis
 from app.services.document_analyzer import DocumentAnalyzer
 
@@ -42,7 +44,22 @@ def test_returns_structured_document_analysis() -> None:
     )
     structured_model.invoke.return_value = expected
 
-    result = analyzer.analyze_text("Meldebescheinigung für eine Adresse in Dortmund")
+    result = analyzer.analyze_text(
+        "Meldebescheinigung f\u00fcr eine Adresse in Dortmund"
+    )
 
     assert result == expected
     structured_model.invoke.assert_called_once()
+
+
+def test_converts_model_failure_to_unavailable_error() -> None:
+    analyzer, structured_model = create_analyzer_with_fake_model()
+    structured_model.invoke.side_effect = ModelAPIError("provider unavailable")
+
+    with pytest.raises(
+        DocumentAnalysisUnavailableError,
+        match="AI provider is temporarily unavailable",
+    ) as captured_error:
+        analyzer.analyze_text("Document text")
+
+    assert isinstance(captured_error.value.__cause__, ModelAPIError)

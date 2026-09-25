@@ -1,7 +1,9 @@
+from langchain_core.exceptions import ModelAPIError
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import Settings, get_settings
+from app.exceptions import DocumentAnalysisUnavailableError
 from app.schemas import DocumentAnalysis
 
 SYSTEM_PROMPT = """
@@ -40,12 +42,19 @@ class DocumentAnalyzer:
         if not cleaned_text:
             raise ValueError("Document text must not be empty")
 
-        result = self.structured_model.invoke(
-            [
-                SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=f"Analyze the following document:\n\n{cleaned_text}"),
-            ]
-        )
+        try:
+            result = self.structured_model.invoke(
+                [
+                    SystemMessage(content=SYSTEM_PROMPT),
+                    HumanMessage(
+                        content=f"Analyze the following document:\n\n{cleaned_text}"
+                    ),
+                ]
+            )
+        except ModelAPIError as exception:
+            raise DocumentAnalysisUnavailableError(
+                "AI provider is temporarily unavailable"
+            ) from exception
 
         if isinstance(result, DocumentAnalysis):
             return result
