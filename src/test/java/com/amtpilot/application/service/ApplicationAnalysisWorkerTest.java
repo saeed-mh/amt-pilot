@@ -36,6 +36,9 @@ class ApplicationAnalysisWorkerTest {
     @Mock
     private ApplicationDocumentAnalysisService documentAnalysisService;
 
+    @Mock
+    private ApplicationAdviceService adviceService;
+
     private ApplicationAnalysisWorker worker;
 
     @BeforeEach
@@ -43,7 +46,8 @@ class ApplicationAnalysisWorkerTest {
         worker = new ApplicationAnalysisWorker(
                 applicationRepository,
                 documentRepository,
-                documentAnalysisService);
+                documentAnalysisService,
+                adviceService);
     }
 
     @Test
@@ -75,6 +79,10 @@ class ApplicationAnalysisWorkerTest {
 
         assertThat(application.getStatus())
                 .isEqualTo(ApplicationStatus.READY_TO_SUBMIT);
+
+        verify(adviceService).generate(
+                userId,
+                applicationId);
 
         verify(applicationRepository)
                 .saveAndFlush(application);
@@ -110,6 +118,10 @@ class ApplicationAnalysisWorkerTest {
 
         assertThat(application.getStatus())
                 .isEqualTo(ApplicationStatus.ACTION_REQUIRED);
+
+        verify(adviceService).generate(
+                userId,
+                applicationId);
     }
 
     @Test
@@ -142,6 +154,10 @@ class ApplicationAnalysisWorkerTest {
         assertThat(application.getStatus())
                 .isEqualTo(ApplicationStatus.ACTION_REQUIRED);
 
+        verify(adviceService).generate(
+                userId,
+                applicationId);
+
         verify(applicationRepository)
                 .saveAndFlush(application);
     }
@@ -168,6 +184,10 @@ class ApplicationAnalysisWorkerTest {
                 .isEqualTo(ApplicationStatus.ACTION_REQUIRED);
 
         verifyNoInteractions(documentAnalysisService);
+
+        verify(adviceService).generate(
+                userId,
+                applicationId);
 
         verify(applicationRepository)
                 .saveAndFlush(application);
@@ -202,6 +222,8 @@ class ApplicationAnalysisWorkerTest {
 
         assertThat(application.getStatus())
                 .isEqualTo(ApplicationStatus.NEEDS_REVIEW);
+
+        verifyNoInteractions(adviceService);
     }
 
     private Application analyzingApplication(int completeness) {
@@ -234,6 +256,9 @@ class ApplicationAnalysisWorkerTest {
 
         when(analysis.getMissingOrUnclear())
                 .thenReturn(missingOrUnclear);
+
+        when(analysis.getWarnings())
+                .thenReturn(List.of());
 
         return analysis;
     }

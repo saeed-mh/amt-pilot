@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -29,3 +31,60 @@ class DocumentAnalysis(BaseModel):
     warnings: list[str] = Field(
         description="Potential expiry, inconsistency, or document-quality problems."
     )
+
+
+class ApplicationRequirement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    title: str
+    required: bool
+    completed: bool
+    official_source_url: str | None = None
+
+
+class AnalyzedDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    original_filename: str
+    requirement_code: str | None = None
+    analysis: DocumentAnalysis
+
+
+class ApplicationAdviceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    process_code: str
+    process_title: str
+    city: str
+    requirements: list[ApplicationRequirement]
+    documents: list[AnalyzedDocument]
+
+
+class RequirementAssessment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requirement_code: str
+    status: Literal["SATISFIED", "MISSING", "NEEDS_REVIEW"] = Field(
+        description="One of SATISFIED, MISSING, or NEEDS_REVIEW."
+    )
+    explanation: str
+    supporting_documents: list[str]
+
+
+class ApplicationAdvice(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    readiness: Literal[
+        "READY_TO_SUBMIT",
+        "ACTION_REQUIRED",
+        "NEEDS_REVIEW",
+    ] = Field(
+        description="One of READY_TO_SUBMIT, ACTION_REQUIRED, or NEEDS_REVIEW."
+    )
+    summary: str
+    requirement_assessments: list[RequirementAssessment]
+    inconsistencies: list[str]
+    next_steps: list[str]
+    questions_for_user: list[str]
+    disclaimer: str

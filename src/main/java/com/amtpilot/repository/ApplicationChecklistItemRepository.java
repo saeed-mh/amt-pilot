@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.amtpilot.entity.ApplicationChecklistItem;
@@ -11,6 +12,10 @@ import com.amtpilot.entity.ApplicationChecklistItem;
 public interface ApplicationChecklistItemRepository
         extends JpaRepository<ApplicationChecklistItem, UUID> {
 
+    @EntityGraph(attributePaths = {
+            "requirement",
+            "requirement.source"
+    })
     List<ApplicationChecklistItem>
             findByApplicationIdOrderByRequirementTitleAsc(
                     UUID applicationId);

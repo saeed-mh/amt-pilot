@@ -25,15 +25,18 @@ public class ApplicationAnalysisWorker {
     private final ApplicationRepository applicationRepository;
     private final ApplicationDocumentRepository documentRepository;
     private final ApplicationDocumentAnalysisService documentAnalysisService;
+    private final ApplicationAdviceService adviceService;
 
     public ApplicationAnalysisWorker(
             ApplicationRepository applicationRepository,
             ApplicationDocumentRepository documentRepository,
-            ApplicationDocumentAnalysisService documentAnalysisService) {
+            ApplicationDocumentAnalysisService documentAnalysisService,
+            ApplicationAdviceService adviceService) {
 
         this.applicationRepository = applicationRepository;
         this.documentRepository = documentRepository;
         this.documentAnalysisService = documentAnalysisService;
+        this.adviceService = adviceService;
     }
 
     @Async
@@ -64,7 +67,15 @@ public class ApplicationAnalysisWorker {
                 if (!analysis.getMissingOrUnclear().isEmpty()) {
                     actionRequired = true;
                 }
+
+                if (!analysis.getWarnings().isEmpty()) {
+                    actionRequired = true;
+                }
             }
+
+            adviceService.generate(
+                    userId,
+                    applicationId);
 
             ApplicationStatus finalStatus = actionRequired
                     ? ApplicationStatus.ACTION_REQUIRED

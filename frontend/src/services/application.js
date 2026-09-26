@@ -14,6 +14,12 @@ export function getApplications() {
   })
 }
 
+export function getApplication(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}`, {
+    authenticated: true,
+  })
+}
+
 export function deleteApplication(applicationId) {
   return apiRequest(`/api/v1/applications/${applicationId}`, {
     authenticated: true,
@@ -25,6 +31,18 @@ export function analyzeApplication(applicationId) {
   return apiRequest(`/api/v1/applications/${applicationId}/analyze`, {
     authenticated: true,
     method: 'POST',
+  })
+}
+
+export function getApplicationAnalyses(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/analyses`, {
+    authenticated: true,
+  })
+}
+
+export function getApplicationAdvice(applicationId) {
+  return apiRequest(`/api/v1/applications/${applicationId}/advice`, {
+    authenticated: true,
   })
 }
 

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import ActionConfirmation from '@/components/ActionConfirmation.vue'
+import ApplicationAnalysisResults from '@/components/ApplicationAnalysisResults.vue'
 import { locale, t, translateCode } from '@/i18n'
 import {
   analyzeApplication,
@@ -242,6 +243,14 @@ function canAnalyze(application) {
   return ['DRAFT', 'ACTION_REQUIRED', 'NEEDS_REVIEW', 'READY_TO_SUBMIT', 'SUBMITTED'].includes(
     application.status,
   )
+}
+
+function updateApplicationFromAnalysis(updatedApplication) {
+  const application = applications.value.find((item) => item.id === updatedApplication.id)
+
+  if (application) {
+    Object.assign(application, updatedApplication)
+  }
 }
 
 function analysisButtonLabel(application) {
@@ -492,6 +501,12 @@ onMounted(loadApplications)
             {{ documentMessage }}
           </p>
         </div>
+
+        <ApplicationAnalysisResults
+          :application="application"
+          :expanded="selectedApplicationId === application.id"
+          @application-updated="updateApplicationFromAnalysis"
+        />
       </li>
     </ul>
 

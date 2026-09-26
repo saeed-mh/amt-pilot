@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.routers.application_advice import router as application_advice_router
 from app.routers.document_analysis import router as document_analysis_router
 
 app = FastAPI(
@@ -8,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(document_analysis_router)
+app.include_router(application_advice_router)
 
 
 @app.get("/health")
