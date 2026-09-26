@@ -38,7 +38,7 @@ info:
   app:
     name: AmtPilot
     description: AI-powered German bureaucracy copilot
-    version: '@project.version@'
+    version: "@project.version@"
 
 app:
   jwt:
@@ -46,3 +46,5 @@ app:
     expiration-seconds: 3600
   storage:
     upload-directory: ${UPLOAD_DIR:./uploads}
+  ai:
+    base-url: ${AI_SERVICE_URL:http://localhost:8001}

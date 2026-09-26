@@ -21,6 +21,7 @@ import com.amtpilot.application.dto.UpdateChecklistItemRequest;
 import com.amtpilot.application.service.ApplicationService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.enums.ApplicationStatus;
+import com.amtpilot.application.service.ApplicationAnalysisWorker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -32,6 +33,9 @@ class ApplicationControllerTest {
 
         @Mock
         private ApplicationService applicationService;
+
+        @Mock
+        private ApplicationAnalysisWorker applicationAnalysisWorker;
 
         @InjectMocks
         private ApplicationController applicationController;
@@ -221,14 +225,13 @@ class ApplicationControllerTest {
                 when(applicationService.analyze(userId, applicationId))
                                 .thenReturn(analyzingApplication);
 
-                ResponseEntity<ApiResponse<ApplicationResponse>> response =
-                                applicationController.analyzeApplication(
-                                                jwt,
+                ResponseEntity<ApiResponse<ApplicationResponse>> response = applicationController.analyzeApplication(
+                                jwt,
                                                 applicationId,
                                                 "trace-analyze");
 
                 assertThat(response.getStatusCode())
-                                .isEqualTo(HttpStatus.OK);
+                                .isEqualTo(HttpStatus.ACCEPTED);
                 assertThat(response.getBody()).isNotNull();
                 assertThat(response.getBody().success()).isTrue();
                 assertThat(response.getBody().data())
@@ -237,6 +240,9 @@ class ApplicationControllerTest {
                                 .isEqualTo("trace-analyze");
 
                 verify(applicationService).analyze(userId, applicationId);
+                verify(applicationAnalysisWorker).analyze(
+                                userId,
+                                applicationId);
         }
 
         @Test

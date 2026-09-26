@@ -22,6 +22,7 @@ import com.amtpilot.application.dto.ChecklistItemResponse;
 import com.amtpilot.application.dto.CreateApplicationRequest;
 import com.amtpilot.application.dto.UpdateApplicationRequest;
 import com.amtpilot.application.dto.UpdateChecklistItemRequest;
+import com.amtpilot.application.service.ApplicationAnalysisWorker;
 import com.amtpilot.application.service.ApplicationService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
@@ -32,139 +33,143 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/applications")
 public class ApplicationController {
 
-    private final ApplicationService applicationService;
+        private final ApplicationService applicationService;
+        private final ApplicationAnalysisWorker applicationAnalysisWorker;
 
-    public ApplicationController(ApplicationService applicationService) {
-        this.applicationService = applicationService;
-    }
+        public ApplicationController(
+                        ApplicationService applicationService,
+                        ApplicationAnalysisWorker applicationAnalysisWorker) {
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<ApplicationResponse>> createApplication(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody CreateApplicationRequest request,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+                this.applicationService = applicationService;
+                this.applicationAnalysisWorker = applicationAnalysisWorker;
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @PostMapping
+        public ResponseEntity<ApiResponse<ApplicationResponse>> createApplication(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @Valid @RequestBody CreateApplicationRequest request,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        ApplicationResponse response = applicationService.create(userId, request);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, traceId));
-    }
+                ApplicationResponse response = applicationService.create(
+                                userId,
+                                request);
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getApplications(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(ApiResponse.success(response, traceId));
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @GetMapping
+        public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getApplications(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        List<ApplicationResponse> applications = applicationService.getApplicationsForUser(userId);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.ok(
-                ApiResponse.success(applications, traceId));
-    }
+                List<ApplicationResponse> applications = applicationService.getApplicationsForUser(userId);
 
-    @GetMapping("/{applicationId}")
-    public ResponseEntity<ApiResponse<ApplicationResponse>> getApplication(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID applicationId,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+                return ResponseEntity.ok(
+                                ApiResponse.success(applications, traceId));
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @GetMapping("/{applicationId}")
+        public ResponseEntity<ApiResponse<ApplicationResponse>> getApplication(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID applicationId,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        ApplicationResponse application = applicationService.getApplicationForUser(userId, applicationId);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.ok(
-                ApiResponse.success(application, traceId));
-    }
+                ApplicationResponse application = applicationService.getApplicationForUser(
+                                userId,
+                                applicationId);
 
-    @DeleteMapping("/{applicationId}")
-    public ResponseEntity<Void> deleteApplication(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID applicationId) {
+                return ResponseEntity.ok(
+                                ApiResponse.success(application, traceId));
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @DeleteMapping("/{applicationId}")
+        public ResponseEntity<Void> deleteApplication(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID applicationId) {
 
-        applicationService.delete(userId, applicationId);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.noContent().build();
-    }
+                applicationService.delete(userId, applicationId);
 
-    @PatchMapping("/{applicationId}")
-    public ResponseEntity<ApiResponse<ApplicationResponse>> updateApplication(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID applicationId,
-            @Valid @RequestBody UpdateApplicationRequest request,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+                return ResponseEntity.noContent().build();
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @PatchMapping("/{applicationId}")
+        public ResponseEntity<ApiResponse<ApplicationResponse>> updateApplication(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID applicationId,
+                        @Valid @RequestBody UpdateApplicationRequest request,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        ApplicationResponse application = applicationService.update(
-                userId,
-                applicationId,
-                request);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.ok(
-                ApiResponse.success(application, traceId));
-    }
+                ApplicationResponse application = applicationService.update(
+                                userId,
+                                applicationId,
+                                request);
 
-    @PostMapping("/{applicationId}/analyze")
-    public ResponseEntity<ApiResponse<ApplicationResponse>> analyzeApplication(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID applicationId,
-            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+                return ResponseEntity.ok(
+                                ApiResponse.success(application, traceId));
+        }
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        @PostMapping("/{applicationId}/analyze")
+        public ResponseEntity<ApiResponse<ApplicationResponse>> analyzeApplication(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID applicationId,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        ApplicationResponse application = applicationService.analyze(
-                userId,
-                applicationId);
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-        return ResponseEntity.ok(
-                ApiResponse.success(application, traceId));
-    }
+                ApplicationResponse application = applicationService.analyze(
+                                userId,
+                                applicationId);
 
-    @GetMapping("/{applicationId}/checklist")
-    public ResponseEntity<ApiResponse<List<ChecklistItemResponse>>>
-            getChecklist(
-                    @AuthenticationPrincipal Jwt jwt,
-                    @PathVariable UUID applicationId,
-                    @RequestAttribute(
-                            TraceIdFilter.TRACE_ID_ATTRIBUTE)
-                    String traceId) {
+                applicationAnalysisWorker.analyze(
+                                userId,
+                                applicationId);
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+                return ResponseEntity.status(HttpStatus.ACCEPTED)
+                                .body(ApiResponse.success(application, traceId));
+        }
 
-        List<ChecklistItemResponse> checklist =
-                applicationService.getChecklistForUser(
-                        userId,
-                        applicationId);
+        @GetMapping("/{applicationId}/checklist")
+        public ResponseEntity<ApiResponse<List<ChecklistItemResponse>>> getChecklist(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID applicationId,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        return ResponseEntity.ok(
-                ApiResponse.success(checklist, traceId));
-    }
+                UUID userId = UUID.fromString(jwt.getSubject());
 
-    @PatchMapping("/checklist/{checklistItemId}")
-    public ResponseEntity<ApiResponse<ChecklistItemResponse>>
-            updateChecklistItem(
-                    @AuthenticationPrincipal Jwt jwt,
-                    @PathVariable UUID checklistItemId,
-                    @Valid @RequestBody
-                    UpdateChecklistItemRequest request,
-                    @RequestAttribute(
-                            TraceIdFilter.TRACE_ID_ATTRIBUTE)
-                    String traceId) {
+                List<ChecklistItemResponse> checklist = applicationService.getChecklistForUser(
+                                userId,
+                                applicationId);
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+                return ResponseEntity.ok(
+                                ApiResponse.success(checklist, traceId));
+        }
 
-        ChecklistItemResponse checklistItem =
-                applicationService.updateChecklistItem(
-                        userId,
-                        checklistItemId,
-                        request);
+        @PatchMapping("/checklist/{checklistItemId}")
+        public ResponseEntity<ApiResponse<ChecklistItemResponse>> updateChecklistItem(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable UUID checklistItemId,
+                        @Valid @RequestBody UpdateChecklistItemRequest request,
+                        @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
 
-        return ResponseEntity.ok(
-                ApiResponse.success(checklistItem, traceId));
-    }
+                UUID userId = UUID.fromString(jwt.getSubject());
+
+                ChecklistItemResponse checklistItem = applicationService.updateChecklistItem(
+                                userId,
+                                checklistItemId,
+                                request);
+
+                return ResponseEntity.ok(
+                                ApiResponse.success(checklistItem, traceId));
+        }
 }

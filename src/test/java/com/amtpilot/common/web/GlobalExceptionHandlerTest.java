@@ -2,6 +2,7 @@ package com.amtpilot.common.web;
 
 import java.util.UUID;
 
+import com.amtpilot.ai.exception.AiServiceUnavailableException;
 import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.DocumentNotFoundException;
@@ -14,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -226,6 +228,31 @@ class GlobalExceptionHandlerTest {
                 assertTraceIdMatchesResponseHeader(result);
         }
 
+        @Test
+        void returnsAiServiceUnavailableError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/ai-service-unavailable"))
+                                .andExpect(status().isServiceUnavailable())
+                                .andExpect(header().string(
+                                                HttpHeaders.RETRY_AFTER,
+                                                "30"))
+                                .andExpect(jsonPath("$.success")
+                                                .value(false))
+                                .andExpect(jsonPath("$.error.code")
+                                                .value(
+                                                                "AI_SERVICE_UNAVAILABLE"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "AI analysis service "
+                                                                                + "is temporarily unavailable"))
+                                .andExpect(content().string(
+                                                not(containsString(
+                                                                "Sensitive AI detail"))))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
         private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
                 String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
                 assertThat(traceId).isNotBlank();
@@ -285,6 +312,12 @@ class GlobalExceptionHandlerTest {
                 @GetMapping("/test/document-not-found")
                 void documentNotFound() {
                         throw new DocumentNotFoundException(DOCUMENT_ID);
+                }
+
+                @GetMapping("/test/ai-service-unavailable")
+                void aiServiceUnavailable() {
+                        throw new AiServiceUnavailableException(
+                                        "Sensitive AI detail");
                 }
         }
 
