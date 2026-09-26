@@ -8,6 +8,7 @@ from app.exceptions import DocumentAnalysisUnavailableError
 from app.schemas import (
     ApplicationAdvice,
     ApplicationAdviceRequest,
+    RequirementAssessment,
 )
 from app.services.application_advisor import ApplicationAdvisor
 
@@ -79,3 +80,14 @@ def test_converts_model_failure_to_unavailable_error() -> None:
         match="AI provider is temporarily unavailable",
     ):
         advisor.advise(application_request())
+
+
+def test_supports_not_applicable_optional_requirements() -> None:
+    assessment = RequirementAssessment(
+        requirement_code="CIVIL_STATUS_DOCUMENTS",
+        status="NOT_APPLICABLE",
+        explanation="This optional requirement does not apply.",
+        supporting_documents=[],
+    )
+
+    assert assessment.status == "NOT_APPLICABLE"

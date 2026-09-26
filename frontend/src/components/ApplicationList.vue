@@ -21,6 +21,7 @@ const applications = ref([])
 const isLoading = ref(true)
 const errorMessage = ref('')
 const selectedApplicationId = ref(null)
+const selectedAnalysisApplicationId = ref(null)
 const checklistItems = ref([])
 const isLoadingChecklist = ref(false)
 const checklistError = ref('')
@@ -35,6 +36,14 @@ const analysisError = ref('')
 const deletingApplicationId = ref(null)
 const deletionError = ref('')
 const pendingApplicationAction = ref(null)
+
+const ANALYSIS_RESULT_STATUSES = new Set([
+  'ACTION_REQUIRED',
+  'READY_TO_SUBMIT',
+  'NEEDS_REVIEW',
+  'SUBMITTED',
+  'COMPLETED',
+])
 
 async function loadApplications(showLoading = true) {
   if (showLoading) {
@@ -69,6 +78,7 @@ async function toggleChecklist(applicationId) {
     return
   }
 
+  selectedAnalysisApplicationId.value = null
   selectedApplicationId.value = applicationId
   checklistItems.value = []
   checklistError.value = ''
@@ -90,6 +100,25 @@ async function toggleChecklist(applicationId) {
   } finally {
     isLoadingChecklist.value = false
   }
+}
+
+function toggleAnalysisResults(applicationId) {
+  if (selectedAnalysisApplicationId.value === applicationId) {
+    selectedAnalysisApplicationId.value = null
+    return
+  }
+
+  selectedAnalysisApplicationId.value = applicationId
+  selectedApplicationId.value = null
+  checklistItems.value = []
+  checklistError.value = ''
+  documents.value = []
+  documentError.value = ''
+  documentMessage.value = ''
+}
+
+function hasAnalysisResults(application) {
+  return ANALYSIS_RESULT_STATUSES.has(application.status)
 }
 
 async function uploadDocument(applicationId, checklistItem, event) {
@@ -230,6 +259,10 @@ async function removeApplication() {
       checklistError.value = ''
       documentError.value = ''
       documentMessage.value = ''
+    }
+
+    if (selectedAnalysisApplicationId.value === application.id) {
+      selectedAnalysisApplicationId.value = null
     }
   } catch (error) {
     deletionError.value = error.message
@@ -386,6 +419,22 @@ onMounted(loadApplications)
           </button>
 
           <button
+            v-if="hasAnalysisResults(application)"
+            class="analysis-results-button"
+            type="button"
+            :aria-expanded="selectedAnalysisApplicationId === application.id"
+            :disabled="deletingApplicationId !== null"
+            @click="toggleAnalysisResults(application.id)"
+          >
+            <span class="button-ai-icon" aria-hidden="true">AI</span>
+            {{
+              selectedAnalysisApplicationId === application.id
+                ? t('applications.closeAnalysisResults')
+                : t('applications.viewAnalysisResults')
+            }}
+          </button>
+
+          <button
             class="delete-application-button"
             type="button"
             :disabled="
@@ -504,7 +553,7 @@ onMounted(loadApplications)
 
         <ApplicationAnalysisResults
           :application="application"
-          :expanded="selectedApplicationId === application.id"
+          :expanded="selectedAnalysisApplicationId === application.id"
           @application-updated="updateApplicationFromAnalysis"
         />
       </li>
@@ -628,6 +677,7 @@ onMounted(loadApplications)
 
 .checklist-button,
 .analyze-button,
+.analysis-results-button,
 .delete-application-button {
   padding: 0.6rem 1rem;
   border-radius: 0.5rem;
@@ -648,6 +698,29 @@ onMounted(loadApplications)
   color: #ffffff;
 }
 
+.analysis-results-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #7c3aed;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.button-ai-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 0.35rem;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
 .delete-application-button {
   border: 1px solid #dc2626;
   background: #ffffff;
@@ -662,12 +735,17 @@ onMounted(loadApplications)
   background: #1d4ed8;
 }
 
+.analysis-results-button:hover:not(:disabled) {
+  background: #ede9fe;
+}
+
 .delete-application-button:hover:not(:disabled) {
   background: #fef2f2;
 }
 
 .checklist-button:disabled,
 .analyze-button:disabled,
+.analysis-results-button:disabled,
 .delete-application-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;

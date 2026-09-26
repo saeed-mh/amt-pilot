@@ -39,14 +39,6 @@ onMounted(loadProfile)
     <section class="dashboard">
       <AppHeader :email="user?.email" />
 
-      <section class="welcome">
-        <p class="eyebrow">{{ t('dashboard.eyebrow') }}</p>
-        <h1>
-          {{ user ? t('dashboard.welcome', { email: user.email }) : t('dashboard.welcomeDefault') }}
-        </h1>
-        <p>{{ t('dashboard.description') }}</p>
-      </section>
-
       <p v-if="isLoading" class="status-message">{{ t('dashboard.loadingProfile') }}</p>
 
       <p v-else-if="loadError" class="status-message error" role="alert">
@@ -86,38 +78,9 @@ onMounted(loadProfile)
   margin: 0 auto;
 }
 
-.welcome {
-  margin-top: 24px;
-  padding: 36px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-}
-
 .application-section,
 .process-section {
   margin-top: 24px;
-}
-
-.eyebrow {
-  margin: 0 0 8px;
-  color: #2563eb;
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-h1 {
-  margin: 0;
-  font-size: 30px;
-}
-
-.welcome p:last-child {
-  max-width: 640px;
-  margin: 12px 0 0;
-  color: #6b7280;
-  line-height: 1.6;
 }
 
 .status-message {
@@ -136,10 +99,6 @@ h1 {
 @media (max-width: 600px) {
   .dashboard-page {
     padding: 16px;
-  }
-
-  .welcome {
-    padding: 20px;
   }
 }
 </style>

@@ -186,10 +186,7 @@ onBeforeUnmount(() => {
     <div v-else class="analysis-results">
       <article v-if="advice" class="application-advice">
         <header class="advice-heading">
-          <div>
-            <span class="advice-eyebrow">{{ t('applications.applicationGuidance') }}</span>
-            <h5>{{ readinessLabel(advice.readiness) }}</h5>
-          </div>
+          <span class="advice-eyebrow">{{ t('applications.applicationReview') }}</span>
           <span class="readiness-badge" :class="`readiness-${advice.readiness.toLowerCase()}`">
             {{ readinessLabel(advice.readiness) }}
           </span>
@@ -248,63 +245,73 @@ onBeforeUnmount(() => {
         <small class="disclaimer">{{ advice.disclaimer }}</small>
       </article>
 
-      <article v-for="analysis in analyses" :key="analysis.id" class="analysis-result">
-        <header class="document-heading">
-          <strong>{{ analysis.originalFilename }}</strong>
-          <small>
-            {{ analysis.documentType }}
-            <template v-if="analysis.primaryLanguage">
-              | {{ analysis.primaryLanguage.toUpperCase() }}
-            </template>
-          </small>
-        </header>
+      <details v-for="analysis in analyses" :key="analysis.id" class="analysis-result">
+        <summary class="document-heading">
+          <span class="document-heading-copy">
+            <strong>{{ analysis.originalFilename }}</strong>
+            <small>
+              {{ analysis.documentType }}
+              <template v-if="analysis.primaryLanguage">
+                | {{ analysis.primaryLanguage.toUpperCase() }}
+              </template>
+            </small>
+          </span>
+          <span class="document-toggle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="m7 10 5 5 5-5" />
+            </svg>
+          </span>
+        </summary>
 
-        <section class="result-section">
-          <h5>{{ t('applications.analysisSummary') }}</h5>
-          <p>{{ analysis.summary }}</p>
-        </section>
+        <div class="document-details">
+          <section class="result-section">
+            <h5>{{ t('applications.analysisSummary') }}</h5>
+            <p>{{ analysis.summary }}</p>
+          </section>
 
-        <section class="result-section">
-          <h5>{{ t('applications.extractedInformation') }}</h5>
+          <section class="result-section">
+            <h5>{{ t('applications.extractedInformation') }}</h5>
 
-          <p v-if="!analysis.extractedFields?.length" class="empty-result">
-            {{ t('applications.noExtractedInformation') }}
-          </p>
+            <p v-if="!analysis.extractedFields?.length" class="empty-result">
+              {{ t('applications.noExtractedInformation') }}
+            </p>
 
-          <dl v-else class="field-list">
-            <div v-for="field in analysis.extractedFields" :key="field.name" class="field">
-              <dt>{{ formatFieldName(field.name) }}</dt>
-              <dd>
-                <strong>{{ field.value }}</strong>
-                <small v-if="field.evidence">
-                  {{ t('applications.evidence') }}: {{ field.evidence }}
-                  <template v-if="field.pageNumber">
-                    ({{ t('applications.page') }} {{ field.pageNumber }})
-                  </template>
-                </small>
-              </dd>
-            </div>
-          </dl>
-        </section>
+            <dl v-else class="field-list">
+              <div v-for="field in analysis.extractedFields" :key="field.name" class="field">
+                <dt>{{ formatFieldName(field.name) }}</dt>
+                <dd>
+                  <strong>{{ field.value }}</strong>
+                  <small v-if="field.evidence" class="field-evidence">
+                    <span class="evidence-label">{{ t('applications.evidence') }}:</span>
+                    <span>{{ field.evidence }}</span>
+                    <template v-if="field.pageNumber">
+                      ({{ t('applications.page') }} {{ field.pageNumber }})
+                    </template>
+                  </small>
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-        <section v-if="analysis.missingOrUnclear?.length" class="result-section issue-section">
-          <h5>{{ t('applications.missingInformation') }}</h5>
-          <ul>
-            <li v-for="item in analysis.missingOrUnclear" :key="item">
-              {{ item }}
-            </li>
-          </ul>
-        </section>
+          <section v-if="analysis.missingOrUnclear?.length" class="result-section issue-section">
+            <h5>{{ t('applications.missingInformation') }}</h5>
+            <ul>
+              <li v-for="item in analysis.missingOrUnclear" :key="item">
+                {{ item }}
+              </li>
+            </ul>
+          </section>
 
-        <section v-if="analysis.warnings?.length" class="result-section warning-section">
-          <h5>{{ t('applications.warnings') }}</h5>
-          <ul>
-            <li v-for="warning in analysis.warnings" :key="warning">
-              {{ warning }}
-            </li>
-          </ul>
-        </section>
-      </article>
+          <section v-if="analysis.warnings?.length" class="result-section warning-section">
+            <h5>{{ t('applications.warnings') }}</h5>
+            <ul>
+              <li v-for="warning in analysis.warnings" :key="warning">
+                {{ warning }}
+              </li>
+            </ul>
+          </section>
+        </div>
+      </details>
     </div>
   </section>
 </template>
@@ -376,10 +383,19 @@ onBeforeUnmount(() => {
 }
 
 .analysis-result {
-  padding: 1rem;
   border: 1px solid #dbeafe;
   border-radius: 0.65rem;
   background: #ffffff;
+  overflow: hidden;
+}
+
+.analysis-result[open] {
+  border-color: #bfdbfe;
+  box-shadow: 0 0.35rem 1rem rgb(37 99 235 / 8%);
+}
+
+.document-details {
+  padding: 0 1rem 1rem;
 }
 
 .application-advice {
@@ -394,12 +410,6 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.advice-heading h5 {
-  margin: 0.2rem 0 0;
-  color: #172554;
-  font-size: 1.1rem;
 }
 
 .advice-eyebrow {
@@ -424,6 +434,11 @@ onBeforeUnmount(() => {
 .assessment-satisfied {
   background: #dcfce7;
   color: #166534;
+}
+
+.assessment-not_applicable {
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .readiness-action_required,
@@ -489,8 +504,31 @@ onBeforeUnmount(() => {
 }
 
 .document-heading {
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  padding: 1rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color 0.2s ease;
+}
+
+.document-heading:hover {
+  background: #f8fafc;
+}
+
+.document-heading:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: -3px;
+}
+
+.document-heading::-webkit-details-marker {
+  display: none;
+}
+
+.document-heading-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
 }
 
 .document-heading strong {
@@ -499,7 +537,40 @@ onBeforeUnmount(() => {
 
 .document-heading small {
   color: #64748b;
-  text-align: right;
+}
+
+.document-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  transition:
+    transform 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.document-toggle-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.analysis-result[open] .document-heading {
+  border-bottom: 1px solid #dbeafe;
+}
+
+.analysis-result[open] .document-toggle-icon {
+  transform: rotate(180deg);
+  background: #dbeafe;
 }
 
 .result-section {
@@ -551,6 +622,17 @@ onBeforeUnmount(() => {
   line-height: 1.4;
 }
 
+.field-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+
+.evidence-label {
+  font-weight: 700;
+}
+
 .issue-section,
 .warning-section {
   padding: 0.75rem;
@@ -586,19 +668,13 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 600px) {
-  .document-heading,
   .field,
   .requirement-assessments li {
     grid-template-columns: 1fr;
   }
 
-  .document-heading,
   .advice-heading {
     display: grid;
-  }
-
-  .document-heading small {
-    text-align: left;
   }
 }
 </style>

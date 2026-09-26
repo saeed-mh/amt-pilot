@@ -16,7 +16,10 @@ const userInitial = computed(() => props.email.trim().charAt(0).toUpperCase() ||
 
 <template>
   <header class="app-header">
-    <RouterLink class="brand" to="/dashboard">AmtPilot</RouterLink>
+    <RouterLink class="brand" to="/dashboard">
+      <span class="brand-name">AmtPilot</span>
+      <span class="brand-tagline">{{ t('header.tagline') }}</span>
+    </RouterLink>
 
     <div class="header-actions">
       <LanguageSwitcher />
@@ -45,10 +48,24 @@ const userInitial = computed(() => props.email.trim().charAt(0).toUpperCase() ||
 }
 
 .brand {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+  text-decoration: none;
+}
+
+.brand-name {
   color: #2563eb;
   font-size: 20px;
-  font-weight: 700;
-  text-decoration: none;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.brand-tagline {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 .header-actions {
@@ -85,7 +102,12 @@ const userInitial = computed(() => props.email.trim().charAt(0).toUpperCase() ||
 
 @media (max-width: 600px) {
   .app-header {
+    gap: 1rem;
     padding: 16px 20px;
+  }
+
+  .brand-tagline {
+    max-width: 12rem;
   }
 }
 </style>

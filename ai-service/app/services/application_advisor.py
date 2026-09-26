@@ -17,10 +17,14 @@ For every requirement, return exactly one assessment:
 - MISSING when a required item has no supporting document or information.
 - NEEDS_REVIEW when evidence is unclear, inconsistent, expired, unofficial,
   low quality, or otherwise unsafe to accept automatically.
+- NOT_APPLICABLE when an optional requirement does not apply to the supplied
+  application context. Never mark an optional requirement SATISFIED merely
+  because it is optional.
 
 Set readiness to:
-- READY_TO_SUBMIT only when every required requirement is SATISFIED and there
-  are no material inconsistencies or warnings.
+- READY_TO_SUBMIT only when every required requirement is SATISFIED, every
+  other requirement is SATISFIED or NOT_APPLICABLE, and there are no material
+  inconsistencies or warnings.
 - ACTION_REQUIRED when the user can resolve missing or problematic information.
 - NEEDS_REVIEW when the supplied information cannot be assessed safely.
 

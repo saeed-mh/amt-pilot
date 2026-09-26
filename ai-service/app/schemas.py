@@ -65,9 +65,12 @@ class RequirementAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     requirement_code: str
-    status: Literal["SATISFIED", "MISSING", "NEEDS_REVIEW"] = Field(
-        description="One of SATISFIED, MISSING, or NEEDS_REVIEW."
-    )
+    status: Literal[
+        "SATISFIED",
+        "MISSING",
+        "NEEDS_REVIEW",
+        "NOT_APPLICABLE",
+    ] = Field(description=("One of SATISFIED, MISSING, NEEDS_REVIEW, or NOT_APPLICABLE."))
     explanation: str
     supporting_documents: list[str]
 
@@ -79,9 +82,7 @@ class ApplicationAdvice(BaseModel):
         "READY_TO_SUBMIT",
         "ACTION_REQUIRED",
         "NEEDS_REVIEW",
-    ] = Field(
-        description="One of READY_TO_SUBMIT, ACTION_REQUIRED, or NEEDS_REVIEW."
-    )
+    ] = Field(description="One of READY_TO_SUBMIT, ACTION_REQUIRED, or NEEDS_REVIEW.")
     summary: str
     requirement_assessments: list[RequirementAssessment]
     inconsistencies: list[str]
