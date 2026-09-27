@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.amtpilot.entity.Application;
+import com.amtpilot.entity.ApplicationAdvice;
 import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ApplicationDocumentAnalysis;
 import com.amtpilot.entity.ProcessDefinition;
@@ -20,6 +21,7 @@ import com.amtpilot.repository.ApplicationDocumentRepository;
 import com.amtpilot.repository.ApplicationRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -74,6 +76,9 @@ class ApplicationAnalysisWorkerTest {
                 applicationId,
                 documentId))
                 .thenReturn(analysis);
+        doReturn(advice("READY_TO_SUBMIT"))
+                .when(adviceService)
+                .generate(userId, applicationId);
 
         worker.analyze(userId, applicationId);
 
@@ -113,6 +118,9 @@ class ApplicationAnalysisWorkerTest {
                 applicationId,
                 documentId))
                 .thenReturn(analysis);
+        doReturn(advice("READY_TO_SUBMIT"))
+                .when(adviceService)
+                .generate(userId, applicationId);
 
         worker.analyze(userId, applicationId);
 
@@ -148,6 +156,9 @@ class ApplicationAnalysisWorkerTest {
                 applicationId,
                 documentId))
                 .thenReturn(analysis);
+        doReturn(advice("READY_TO_SUBMIT"))
+                .when(adviceService)
+                .generate(userId, applicationId);
 
         worker.analyze(userId, applicationId);
 
@@ -177,6 +188,9 @@ class ApplicationAnalysisWorkerTest {
                 .findByApplicationIdOrderByCreatedAtDesc(
                         applicationId))
                 .thenReturn(List.of());
+        doReturn(advice("READY_TO_SUBMIT"))
+                .when(adviceService)
+                .generate(userId, applicationId);
 
         worker.analyze(userId, applicationId);
 
@@ -226,6 +240,38 @@ class ApplicationAnalysisWorkerTest {
         verifyNoInteractions(adviceService);
     }
 
+    @Test
+    void usesNeedsReviewReadinessReturnedByGroundedAdvice() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        Application application = analyzingApplication(100);
+        ApplicationDocument document = document(documentId);
+        ApplicationDocumentAnalysis analysis = analysis(List.of());
+
+        when(applicationRepository.findByIdAndUserId(
+                applicationId,
+                userId))
+                .thenReturn(Optional.of(application));
+        when(documentRepository
+                .findByApplicationIdOrderByCreatedAtDesc(
+                        applicationId))
+                .thenReturn(List.of(document));
+        when(documentAnalysisService.analyze(
+                userId,
+                applicationId,
+                documentId))
+                .thenReturn(analysis);
+        doReturn(advice("NEEDS_REVIEW"))
+                .when(adviceService)
+                .generate(userId, applicationId);
+
+        worker.analyze(userId, applicationId);
+
+        assertThat(application.getStatus())
+                .isEqualTo(ApplicationStatus.NEEDS_REVIEW);
+    }
+
     private Application analyzingApplication(int completeness) {
         User user = org.mockito.Mockito.mock(User.class);
         ProcessDefinition process = org.mockito.Mockito.mock(
@@ -261,5 +307,14 @@ class ApplicationAnalysisWorkerTest {
                 .thenReturn(List.of());
 
         return analysis;
+    }
+
+    private ApplicationAdvice advice(String readiness) {
+        ApplicationAdvice advice = org.mockito.Mockito.mock(
+                ApplicationAdvice.class);
+
+        when(advice.getReadiness()).thenReturn(readiness);
+
+        return advice;
     }
 }

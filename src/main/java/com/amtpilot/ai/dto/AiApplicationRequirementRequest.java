@@ -7,5 +7,6 @@ public record AiApplicationRequirementRequest(
         String title,
         boolean required,
         boolean completed,
+        @JsonProperty("official_source_title") String officialSourceTitle,
         @JsonProperty("official_source_url") String officialSourceUrl) {
 }

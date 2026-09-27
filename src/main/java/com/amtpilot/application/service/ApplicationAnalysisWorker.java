@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
+import com.amtpilot.entity.ApplicationAdvice;
 import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ApplicationDocumentAnalysis;
 import com.amtpilot.enums.ApplicationStatus;
@@ -73,13 +74,17 @@ public class ApplicationAnalysisWorker {
                 }
             }
 
-            adviceService.generate(
+            ApplicationAdvice advice = adviceService.generate(
                     userId,
                     applicationId);
 
-            ApplicationStatus finalStatus = actionRequired
-                    ? ApplicationStatus.ACTION_REQUIRED
-                    : ApplicationStatus.READY_TO_SUBMIT;
+            ApplicationStatus finalStatus = statusFromAdvice(
+                    advice.getReadiness());
+
+            if (actionRequired
+                    && finalStatus == ApplicationStatus.READY_TO_SUBMIT) {
+                finalStatus = ApplicationStatus.ACTION_REQUIRED;
+            }
 
             finishAnalysis(
                     userId,
@@ -97,6 +102,14 @@ public class ApplicationAnalysisWorker {
                     applicationId,
                     ApplicationStatus.NEEDS_REVIEW);
         }
+    }
+
+    private ApplicationStatus statusFromAdvice(String readiness) {
+        return switch (readiness) {
+            case "READY_TO_SUBMIT" -> ApplicationStatus.READY_TO_SUBMIT;
+            case "ACTION_REQUIRED" -> ApplicationStatus.ACTION_REQUIRED;
+            default -> ApplicationStatus.NEEDS_REVIEW;
+        };
     }
 
     private void finishAnalysis(

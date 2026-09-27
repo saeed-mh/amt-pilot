@@ -9,6 +9,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.util.List;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 
 import com.amtpilot.ai.dto.AiApplicationAdviceRequest;
 import com.amtpilot.ai.dto.AiApplicationAdviceResponse;
+import com.amtpilot.ai.dto.AiOfficialProcessGuideRequest;
 import com.amtpilot.ai.exception.AiServiceUnavailableException;
 
 class AiApplicationAdviceClientTest {
@@ -51,6 +53,19 @@ class AiApplicationAdviceClientTest {
                           "process_code": "ADDRESS_REGISTRATION",
                           "process_title": "Address Registration",
                           "city": "Dortmund",
+                          "official_guide": {
+                            "overview": "Register your new residence.",
+                            "eligibility": "Residents can register.",
+                            "steps": ["Collect documents."],
+                            "deadline": "Within two weeks.",
+                            "fee": "Free of charge.",
+                            "appointment_required": true,
+                            "appointment_information": "Book an appointment.",
+                            "appointment_url": "https://example.test/appointment",
+                            "source_title": "Official registration guide",
+                            "source_url": "https://example.test/guide",
+                            "verified_at": "2026-09-27"
+                          },
                           "requirements": [],
                           "documents": []
                         }
@@ -63,6 +78,13 @@ class AiApplicationAdviceClientTest {
                           "inconsistencies": [],
                           "next_steps": ["Upload the missing document."],
                           "questions_for_user": [],
+                          "official_source_references": [{
+                            "section": "deadline",
+                            "statements": ["Within two weeks."],
+                            "source_title": "Official registration guide",
+                            "source_url": "https://example.test/guide",
+                            "verified_at": "2026-09-27"
+                          }],
                           "disclaimer": "Guidance only; not legal advice."
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -72,6 +94,18 @@ class AiApplicationAdviceClientTest {
                         "ADDRESS_REGISTRATION",
                         "Address Registration",
                         "Dortmund",
+                        new AiOfficialProcessGuideRequest(
+                                "Register your new residence.",
+                                "Residents can register.",
+                                List.of("Collect documents."),
+                                "Within two weeks.",
+                                "Free of charge.",
+                                true,
+                                "Book an appointment.",
+                                "https://example.test/appointment",
+                                "Official registration guide",
+                                "https://example.test/guide",
+                                LocalDate.of(2026, 9, 27)),
                         List.of(),
                         List.of()));
 
@@ -79,6 +113,14 @@ class AiApplicationAdviceClientTest {
                 .isEqualTo("ACTION_REQUIRED");
         assertThat(response.nextSteps())
                 .containsExactly("Upload the missing document.");
+        assertThat(response.officialSourceReferences())
+                .hasSize(1);
+        assertThat(response.officialSourceReferences().getFirst().sourceTitle())
+                .isEqualTo("Official registration guide");
+        assertThat(response.officialSourceReferences().getFirst().sourceUrl())
+                .isEqualTo("https://example.test/guide");
+        assertThat(response.officialSourceReferences().getFirst().verifiedAt())
+                .isEqualTo(LocalDate.of(2026, 9, 27));
 
         server.verify();
     }
@@ -95,6 +137,7 @@ class AiApplicationAdviceClientTest {
                         "ADDRESS_REGISTRATION",
                         "Address Registration",
                         "Dortmund",
+                        null,
                         List.of(),
                         List.of());
 

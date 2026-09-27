@@ -12,6 +12,7 @@ import com.amtpilot.ai.dto.AiApplicationAdviceRequest;
 import com.amtpilot.ai.dto.AiApplicationAdviceResponse;
 import com.amtpilot.ai.dto.AiApplicationRequirementRequest;
 import com.amtpilot.ai.dto.AiDocumentAnalysisResponse;
+import com.amtpilot.ai.dto.AiOfficialProcessGuideRequest;
 import com.amtpilot.application.dto.ApplicationAdviceResponse;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.entity.Application;
@@ -20,10 +21,12 @@ import com.amtpilot.entity.ApplicationChecklistItem;
 import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ApplicationDocumentAnalysis;
 import com.amtpilot.entity.ProcessDefinition;
+import com.amtpilot.entity.ProcessGuide;
 import com.amtpilot.repository.ApplicationAdviceRepository;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationDocumentAnalysisRepository;
 import com.amtpilot.repository.ApplicationRepository;
+import com.amtpilot.repository.ProcessGuideRepository;
 
 @Service
 public class ApplicationAdviceService {
@@ -32,6 +35,7 @@ public class ApplicationAdviceService {
     private final ApplicationChecklistItemRepository checklistRepository;
     private final ApplicationDocumentAnalysisRepository analysisRepository;
     private final ApplicationAdviceRepository adviceRepository;
+    private final ProcessGuideRepository processGuideRepository;
     private final AiApplicationAdviceClient aiClient;
 
     public ApplicationAdviceService(
@@ -39,12 +43,14 @@ public class ApplicationAdviceService {
             ApplicationChecklistItemRepository checklistRepository,
             ApplicationDocumentAnalysisRepository analysisRepository,
             ApplicationAdviceRepository adviceRepository,
+            ProcessGuideRepository processGuideRepository,
             AiApplicationAdviceClient aiClient) {
 
         this.applicationRepository = applicationRepository;
         this.checklistRepository = checklistRepository;
         this.analysisRepository = analysisRepository;
         this.adviceRepository = adviceRepository;
+        this.processGuideRepository = processGuideRepository;
         this.aiClient = aiClient;
     }
 
@@ -119,6 +125,7 @@ public class ApplicationAdviceService {
                         item.getRequirement().getTitle(),
                         item.getRequirement().isRequired(),
                         item.isCompleted(),
+                        item.getRequirement().getSource().getTitle(),
                         item.getRequirement().getSource().getUrl()))
                 .toList();
 
@@ -127,12 +134,35 @@ public class ApplicationAdviceService {
                 .map(this::toAnalyzedDocument)
                 .toList();
 
+        AiOfficialProcessGuideRequest officialGuide =
+                processGuideRepository.findByProcessId(process.getId())
+                        .map(this::toOfficialGuide)
+                        .orElse(null);
+
         return new AiApplicationAdviceRequest(
                 process.getCode(),
                 process.getTitle(),
                 process.getCity(),
+                officialGuide,
                 requirements,
                 documents);
+    }
+
+    private AiOfficialProcessGuideRequest toOfficialGuide(
+            ProcessGuide guide) {
+
+        return new AiOfficialProcessGuideRequest(
+                guide.getOverviewEn(),
+                guide.getEligibilityEn(),
+                List.copyOf(guide.getStepsEn()),
+                guide.getDeadlineEn(),
+                guide.getFeeEn(),
+                guide.isAppointmentRequired(),
+                guide.getAppointmentInformationEn(),
+                guide.getAppointmentUrl(),
+                guide.getSourceTitle(),
+                guide.getSourceUrl(),
+                guide.getVerifiedAt());
     }
 
     private AiAnalyzedDocumentRequest toAnalyzedDocument(
@@ -171,6 +201,7 @@ public class ApplicationAdviceService {
                 advice.getInconsistencies(),
                 advice.getNextSteps(),
                 advice.getQuestionsForUser(),
+                advice.getOfficialSourceReferences(),
                 advice.getDisclaimer(),
                 advice.getCreatedAt(),
                 advice.getUpdatedAt());

@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 
 import com.amtpilot.ai.dto.AiApplicationAdviceResponse;
+import com.amtpilot.ai.dto.AiOfficialSourceReferenceResponse;
 import com.amtpilot.ai.dto.AiRequirementAssessmentResponse;
 
 import jakarta.persistence.Column;
@@ -67,6 +68,10 @@ public class ApplicationAdvice {
     @Column(name = "questions_for_user", nullable = false, columnDefinition = "jsonb")
     private List<String> questionsForUser;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "official_source_references", nullable = false, columnDefinition = "jsonb")
+    private List<AiOfficialSourceReferenceResponse> officialSourceReferences;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String disclaimer;
 
@@ -89,6 +94,8 @@ public class ApplicationAdvice {
                 advice.nextSteps());
         this.questionsForUser = List.copyOf(
                 advice.questionsForUser());
+        this.officialSourceReferences = List.copyOf(
+                advice.officialSourceReferences());
         this.disclaimer = advice.disclaimer();
     }
 
@@ -122,6 +129,10 @@ public class ApplicationAdvice {
 
     public List<String> getQuestionsForUser() {
         return questionsForUser;
+    }
+
+    public List<AiOfficialSourceReferenceResponse> getOfficialSourceReferences() {
+        return officialSourceReferences;
     }
 
     public String getDisclaimer() {

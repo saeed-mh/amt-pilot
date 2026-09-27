@@ -12,5 +12,7 @@ public record AiApplicationAdviceResponse(
         List<String> inconsistencies,
         @JsonProperty("next_steps") List<String> nextSteps,
         @JsonProperty("questions_for_user") List<String> questionsForUser,
+        @JsonProperty("official_source_references")
+        List<AiOfficialSourceReferenceResponse> officialSourceReferences,
         String disclaimer) {
 }

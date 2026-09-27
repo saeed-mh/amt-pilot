@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,6 +41,7 @@ class ApplicationRequirement(BaseModel):
     title: str
     required: bool
     completed: bool
+    official_source_title: str | None = None
     official_source_url: str | None = None
 
 
@@ -51,12 +53,39 @@ class AnalyzedDocument(BaseModel):
     analysis: DocumentAnalysis
 
 
+GuideSection = Literal[
+    "overview",
+    "eligibility",
+    "steps",
+    "deadline",
+    "fee",
+    "appointment",
+]
+
+
+class OfficialProcessGuide(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    overview: str
+    eligibility: str
+    steps: list[str]
+    deadline: str
+    fee: str
+    appointment_required: bool
+    appointment_information: str
+    appointment_url: str | None = None
+    source_title: str
+    source_url: str
+    verified_at: date
+
+
 class ApplicationAdviceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     process_code: str
     process_title: str
     city: str
+    official_guide: OfficialProcessGuide | None = None
     requirements: list[ApplicationRequirement]
     documents: list[AnalyzedDocument]
 
@@ -73,6 +102,49 @@ class RequirementAssessment(BaseModel):
     ] = Field(description=("One of SATISFIED, MISSING, NEEDS_REVIEW, or NOT_APPLICABLE."))
     explanation: str
     supporting_documents: list[str]
+    official_source_title: str | None = None
+    official_source_url: str | None = None
+
+
+class RequirementAssessmentDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requirement_code: str
+    status: Literal[
+        "SATISFIED",
+        "MISSING",
+        "NEEDS_REVIEW",
+        "NOT_APPLICABLE",
+    ]
+    explanation: str
+    supporting_documents: list[str]
+
+
+class OfficialSourceReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    section: GuideSection
+    statements: list[str]
+    source_title: str
+    source_url: str
+    verified_at: date
+
+
+class ApplicationAdviceDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    readiness: Literal[
+        "READY_TO_SUBMIT",
+        "ACTION_REQUIRED",
+        "NEEDS_REVIEW",
+    ]
+    summary: str
+    requirement_assessments: list[RequirementAssessmentDraft]
+    inconsistencies: list[str]
+    next_steps: list[str]
+    questions_for_user: list[str]
+    official_guide_sections_used: list[GuideSection]
+    disclaimer: str
 
 
 class ApplicationAdvice(BaseModel):
@@ -88,4 +160,5 @@ class ApplicationAdvice(BaseModel):
     inconsistencies: list[str]
     next_steps: list[str]
     questions_for_user: list[str]
+    official_source_references: list[OfficialSourceReference]
     disclaimer: str

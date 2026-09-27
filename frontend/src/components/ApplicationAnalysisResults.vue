@@ -147,6 +147,28 @@ function readinessLabel(readiness) {
   return translateCode('status', readiness, readiness)
 }
 
+function guideSectionLabel(section) {
+  return translateCode('guideSection', section, formatFieldName(section))
+}
+
+function referenceValue(reference, camelCaseName, snakeCaseName) {
+  return reference?.[camelCaseName] ?? reference?.[snakeCaseName]
+}
+
+function formatVerifiedDate(reference) {
+  const value = referenceValue(reference, 'verifiedAt', 'verified_at')
+
+  if (!value) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`))
+}
+
 watch(
   [() => props.application.id, () => props.application.status],
   ([applicationId, status]) => synchronize(applicationId, status),
@@ -214,6 +236,12 @@ onBeforeUnmount(() => {
                   {{ t('applications.supportingDocuments') }}:
                   {{ assessment.supportingDocuments.join(', ') }}
                 </small>
+                <small v-if="assessment.officialSourceUrl" class="official-requirement-source">
+                  {{ t('applications.officialRequirementSource') }}:
+                  <a :href="assessment.officialSourceUrl" target="_blank" rel="noopener noreferrer">
+                    {{ assessment.officialSourceTitle || t('catalog.officialSource') }}
+                  </a>
+                </small>
               </div>
             </li>
           </ul>
@@ -238,6 +266,41 @@ onBeforeUnmount(() => {
           <ul>
             <li v-for="question in advice.questionsForUser" :key="question">
               {{ question }}
+            </li>
+          </ul>
+        </section>
+
+        <section
+          v-if="advice.officialSourceReferences?.length"
+          class="result-section grounded-sources"
+        >
+          <div class="grounded-heading">
+            <h5>{{ t('applications.officialInformationUsed') }}</h5>
+            <span class="grounded-badge">{{ t('applications.sourceBacked') }}</span>
+          </div>
+          <p class="grounded-description">
+            {{ t('applications.groundedDescription') }}
+          </p>
+          <ul class="grounded-reference-list">
+            <li v-for="reference in advice.officialSourceReferences" :key="reference.section">
+              <strong>{{ guideSectionLabel(reference.section) }}</strong>
+              <ul>
+                <li v-for="statement in reference.statements" :key="statement">
+                  {{ statement }}
+                </li>
+              </ul>
+              <div class="source-meta">
+                <a
+                  :href="referenceValue(reference, 'sourceUrl', 'source_url')"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ referenceValue(reference, 'sourceTitle', 'source_title') }}
+                </a>
+                <span v-if="formatVerifiedDate(reference)">
+                  {{ t('catalog.verifiedOn', { date: formatVerifiedDate(reference) }) }}
+                </span>
+              </div>
             </li>
           </ul>
         </section>
@@ -483,6 +546,17 @@ onBeforeUnmount(() => {
   color: #64748b;
 }
 
+.official-requirement-source {
+  display: block;
+  margin-top: 0.35rem;
+}
+
+.official-requirement-source a,
+.source-meta a {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
 .next-steps {
   padding: 0.75rem;
   border-radius: 0.5rem;
@@ -494,6 +568,64 @@ onBeforeUnmount(() => {
   padding-left: 1.25rem;
   color: #334155;
   line-height: 1.6;
+}
+
+.grounded-sources {
+  padding: 0.85rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.55rem;
+  background: #f0fdf4;
+}
+
+.grounded-heading,
+.source-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.grounded-heading h5 {
+  margin: 0;
+  color: #166534;
+}
+
+.grounded-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.grounded-description {
+  margin-top: 0.45rem;
+}
+
+.grounded-reference-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0;
+  list-style: none;
+}
+
+.grounded-reference-list > li {
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+}
+
+.grounded-reference-list ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.source-meta {
+  align-items: flex-start;
+  margin-top: 0.55rem;
+  color: #64748b;
+  font-size: 0.75rem;
 }
 
 .disclaimer {
@@ -675,6 +807,12 @@ onBeforeUnmount(() => {
 
   .advice-heading {
     display: grid;
+  }
+
+  .grounded-heading,
+  .source-meta {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

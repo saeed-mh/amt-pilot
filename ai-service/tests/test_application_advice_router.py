@@ -23,9 +23,11 @@ def request_body() -> dict:
                 "title": "Landlord confirmation",
                 "required": True,
                 "completed": True,
+                "official_source_title": "Official registration guide",
                 "official_source_url": "https://example.test/registration",
             }
         ],
+        "official_guide": None,
         "documents": [],
     }
 
@@ -39,6 +41,7 @@ def test_returns_application_advice() -> None:
         inconsistencies=[],
         next_steps=["Upload the missing document."],
         questions_for_user=[],
+        official_source_references=[],
         disclaimer="Guidance only; not legal advice.",
     )
     advisor.advise.return_value = advice

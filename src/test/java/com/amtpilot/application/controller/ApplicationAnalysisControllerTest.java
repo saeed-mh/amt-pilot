@@ -112,6 +112,7 @@ class ApplicationAnalysisControllerTest {
                         List.of(),
                         List.of("Upload the missing document."),
                         List.of(),
+                        List.of(),
                         "Guidance only; not legal advice.",
                         Instant.parse("2026-09-26T11:00:00Z"),
                         Instant.parse("2026-09-26T11:05:00Z"));

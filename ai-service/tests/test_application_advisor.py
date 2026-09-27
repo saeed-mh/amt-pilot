@@ -7,6 +7,7 @@ from app.config import Settings
 from app.exceptions import DocumentAnalysisUnavailableError
 from app.schemas import (
     ApplicationAdvice,
+    ApplicationAdviceDraft,
     ApplicationAdviceRequest,
     RequirementAssessment,
 )
@@ -38,16 +39,30 @@ def application_request() -> ApplicationAdviceRequest:
                 "title": "Landlord confirmation",
                 "required": True,
                 "completed": True,
+                "official_source_title": "Official registration guide",
                 "official_source_url": "https://example.test/registration",
             }
         ],
+        official_guide={
+            "overview": "Register a new primary residence after moving.",
+            "eligibility": "Residents aged 16 or older generally register themselves.",
+            "steps": ["Collect the required documents.", "Complete the registration."],
+            "deadline": "Register within two weeks after moving.",
+            "fee": "The registration confirmation is free of charge.",
+            "appointment_required": True,
+            "appointment_information": "Book an appointment for an in-person visit.",
+            "appointment_url": "https://example.test/appointments",
+            "source_title": "Official registration guide",
+            "source_url": "https://example.test/registration",
+            "verified_at": "2026-09-27",
+        },
         documents=[],
     )
 
 
 def test_returns_structured_application_advice() -> None:
     advisor, structured_model = create_advisor_with_fake_model()
-    expected = ApplicationAdvice(
+    draft = ApplicationAdviceDraft(
         readiness="ACTION_REQUIRED",
         summary="A valid identity document is still required.",
         requirement_assessments=[
@@ -61,14 +76,69 @@ def test_returns_structured_application_advice() -> None:
         inconsistencies=[],
         next_steps=["Upload a valid identity document."],
         questions_for_user=[],
+        official_guide_sections_used=["deadline"],
         disclaimer="Guidance only; not legal advice.",
     )
-    structured_model.invoke.return_value = expected
+    structured_model.invoke.return_value = draft
 
     result = advisor.advise(application_request())
 
-    assert result == expected
+    assert result == ApplicationAdvice(
+        readiness="ACTION_REQUIRED",
+        summary="A valid identity document is still required.",
+        requirement_assessments=[
+            {
+                "requirement_code": "IDENTITY_DOCUMENT",
+                "status": "MISSING",
+                "explanation": "No identity document was supplied.",
+                "supporting_documents": [],
+                "official_source_title": None,
+                "official_source_url": None,
+            }
+        ],
+        inconsistencies=[],
+        next_steps=["Upload a valid identity document."],
+        questions_for_user=[],
+        official_source_references=[
+            {
+                "section": "deadline",
+                "statements": ["Register within two weeks after moving."],
+                "source_title": "Official registration guide",
+                "source_url": "https://example.test/registration",
+                "verified_at": "2026-09-27",
+            }
+        ],
+        disclaimer="Guidance only; not legal advice.",
+    )
     structured_model.invoke.assert_called_once()
+
+
+def test_attaches_trusted_requirement_source_instead_of_model_generated_source() -> None:
+    advisor, structured_model = create_advisor_with_fake_model()
+    structured_model.invoke.return_value = ApplicationAdviceDraft(
+        readiness="READY_TO_SUBMIT",
+        summary="The requirement is satisfied.",
+        requirement_assessments=[
+            {
+                "requirement_code": "LANDLORD_CONFIRMATION",
+                "status": "SATISFIED",
+                "explanation": "The confirmation was supplied.",
+                "supporting_documents": ["confirmation.pdf"],
+            }
+        ],
+        inconsistencies=[],
+        next_steps=[],
+        questions_for_user=[],
+        official_guide_sections_used=["overview", "overview"],
+        disclaimer="Guidance only; not legal advice.",
+    )
+
+    result = advisor.advise(application_request())
+
+    assessment = result.requirement_assessments[0]
+    assert assessment.official_source_title == "Official registration guide"
+    assert assessment.official_source_url == "https://example.test/registration"
+    assert len(result.official_source_references) == 1
 
 
 def test_converts_model_failure_to_unavailable_error() -> None:
@@ -88,6 +158,56 @@ def test_supports_not_applicable_optional_requirements() -> None:
         status="NOT_APPLICABLE",
         explanation="This optional requirement does not apply.",
         supporting_documents=[],
+        official_source_title=None,
+        official_source_url=None,
     )
 
     assert assessment.status == "NOT_APPLICABLE"
+
+
+def test_invalid_sample_document_requires_action_and_clear_replacement_step() -> None:
+    advisor, structured_model = create_advisor_with_fake_model()
+    request_data = application_request().model_dump()
+    request_data["documents"] = [
+        {
+            "original_filename": "sample_confirmation.pdf",
+            "requirement_code": "LANDLORD_CONFIRMATION",
+            "analysis": {
+                "document_type": "Landlord confirmation",
+                "primary_language": "de",
+                "summary": "A sample confirmation.",
+                "extracted_fields": [],
+                "missing_or_unclear": [],
+                "warnings": ["Synthetic test fixture; not an official document."],
+            },
+        }
+    ]
+    request = ApplicationAdviceRequest.model_validate(request_data)
+    structured_model.invoke.return_value = ApplicationAdviceDraft(
+        readiness="NEEDS_REVIEW",
+        summary="The supplied document is synthetic.",
+        requirement_assessments=[
+            {
+                "requirement_code": "LANDLORD_CONFIRMATION",
+                "status": "NEEDS_REVIEW",
+                "explanation": "The document is a sample.",
+                "supporting_documents": ["sample_confirmation.pdf"],
+            }
+        ],
+        inconsistencies=["The supplied document is synthetic."],
+        next_steps=[
+            "Provide a genuine landlord confirmation in sample_confirmation.pdf.",
+            "Book an appointment after replacing the document.",
+        ],
+        questions_for_user=[],
+        official_guide_sections_used=["steps"],
+        disclaimer="Guidance only; not legal advice.",
+    )
+
+    result = advisor.advise(request)
+
+    assert result.readiness == "ACTION_REQUIRED"
+    assert result.next_steps == [
+        ("Replace sample_confirmation.pdf with a valid, official Landlord confirmation."),
+        "Book an appointment after replacing the document.",
+    ]
