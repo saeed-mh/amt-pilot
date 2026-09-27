@@ -2,9 +2,9 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import ActionConfirmation from '@/components/ActionConfirmation.vue'
-import { t, translateCode } from '@/i18n'
+import { locale, t, translateCode } from '@/i18n'
 import { createApplication, getApplications } from '@/services/application'
-import { getProcesses, getProcessRequirements } from '@/services/process'
+import { getProcesses, getProcessGuide, getProcessRequirements } from '@/services/process'
 
 const emit = defineEmits(['application-created'])
 
@@ -28,6 +28,10 @@ const selectedProcessId = ref(null)
 const requirements = ref([])
 const isLoadingRequirements = ref(false)
 const requirementsError = ref('')
+const selectedGuideProcessId = ref(null)
+const processGuide = ref(null)
+const isLoadingGuide = ref(false)
+const guideError = ref('')
 const creatingProcessId = ref(null)
 const pendingProcess = ref(null)
 const applicationMessage = ref('')
@@ -71,9 +75,9 @@ function dismissApplicationToast() {
   applicationMessage.value = ''
 }
 
-function showApplicationToast(processTitle) {
+function showApplicationToast(processTitleValue) {
   dismissApplicationToast()
-  applicationMessage.value = t('catalog.createdMessage', { title: processTitle })
+  applicationMessage.value = t('catalog.createdMessage', { title: processTitleValue })
 
   applicationToastTimer = window.setTimeout(() => {
     applicationMessage.value = ''
@@ -81,12 +85,23 @@ function showApplicationToast(processTitle) {
   }, 5000)
 }
 
-async function loadProcesses() {
-  isLoading.value = true
-  errorMessage.value = ''
+function closeRequirements() {
   selectedProcessId.value = null
   requirements.value = []
   requirementsError.value = ''
+}
+
+function closeGuide() {
+  selectedGuideProcessId.value = null
+  processGuide.value = null
+  guideError.value = ''
+}
+
+async function loadProcesses() {
+  isLoading.value = true
+  errorMessage.value = ''
+  closeRequirements()
+  closeGuide()
   dismissApplicationToast()
   applicationError.value = ''
   searchQuery.value = ''
@@ -148,6 +163,16 @@ function requirementTitle(requirement) {
   return translateCode('requirement', requirement.code, requirement.title)
 }
 
+function formatVerifiedDate(value) {
+  if (!value) {
+    return ''
+  }
+
+  return new Intl.DateTimeFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', {
+    dateStyle: 'medium',
+  }).format(new Date(value + 'T00:00:00'))
+}
+
 function cancelApplicationStart() {
   if (creatingProcessId.value) {
     return
@@ -182,12 +207,11 @@ async function confirmApplicationStart() {
 
 async function toggleRequirements(process) {
   if (selectedProcessId.value === process.id) {
-    selectedProcessId.value = null
-    requirements.value = []
-    requirementsError.value = ''
+    closeRequirements()
     return
   }
 
+  closeGuide()
   selectedProcessId.value = process.id
   requirements.value = []
   requirementsError.value = ''
@@ -202,11 +226,42 @@ async function toggleRequirements(process) {
   }
 }
 
+async function loadGuide(processId) {
+  processGuide.value = null
+  guideError.value = ''
+  isLoadingGuide.value = true
+
+  try {
+    processGuide.value = await getProcessGuide(processId, locale.value)
+  } catch (error) {
+    guideError.value = error.message
+  } finally {
+    isLoadingGuide.value = false
+  }
+}
+
+async function toggleGuide(process) {
+  if (selectedGuideProcessId.value === process.id) {
+    closeGuide()
+    return
+  }
+
+  closeRequirements()
+  selectedGuideProcessId.value = process.id
+  await loadGuide(process.id)
+}
+
 watch(
   () => props.city,
   () => loadProcesses(),
   { immediate: true },
 )
+
+watch(locale, () => {
+  if (selectedGuideProcessId.value) {
+    loadGuide(selectedGuideProcessId.value)
+  }
+})
 
 onBeforeUnmount(dismissApplicationToast)
 </script>
@@ -262,6 +317,20 @@ onBeforeUnmount(dismissApplicationToast)
 
         <div class="process-actions">
           <button
+            v-if="process.guideAvailable"
+            class="guide-button"
+            type="button"
+            :aria-expanded="selectedGuideProcessId === process.id"
+            @click="toggleGuide(process)"
+          >
+            {{
+              selectedGuideProcessId === process.id
+                ? t('catalog.hideGuide')
+                : t('catalog.showGuide')
+            }}
+          </button>
+
+          <button
             class="requirements-button"
             type="button"
             :aria-expanded="selectedProcessId === process.id"
@@ -312,6 +381,74 @@ onBeforeUnmount(dismissApplicationToast)
               </a>
             </li>
           </ul>
+        </div>
+
+        <div v-if="selectedGuideProcessId === process.id" class="process-guide">
+          <p v-if="isLoadingGuide">{{ t('catalog.loadingGuide') }}</p>
+
+          <p v-else-if="guideError" class="error" role="alert">
+            {{ guideError }}
+          </p>
+
+          <template v-else-if="processGuide">
+            <div class="guide-heading">
+              <div>
+                <span class="guide-label">{{ t('catalog.officialGuide') }}</span>
+                <h4>{{ processGuide.overview }}</h4>
+              </div>
+              <span class="verified-badge">{{ t('catalog.verifiedInformation') }}</span>
+            </div>
+
+            <section class="guide-section">
+              <h5>{{ t('catalog.whoThisAppliesTo') }}</h5>
+              <p>{{ processGuide.eligibility }}</p>
+            </section>
+
+            <section class="guide-section">
+              <h5>{{ t('catalog.steps') }}</h5>
+              <ol class="guide-steps">
+                <li v-for="step in processGuide.steps" :key="step">{{ step }}</li>
+              </ol>
+            </section>
+
+            <div class="guide-facts">
+              <section>
+                <span>{{ t('catalog.deadline') }}</span>
+                <p>{{ processGuide.deadline }}</p>
+              </section>
+              <section>
+                <span>{{ t('catalog.fee') }}</span>
+                <p>{{ processGuide.fee }}</p>
+              </section>
+            </div>
+
+            <section class="guide-section appointment-section">
+              <h5>{{ t('catalog.appointment') }}</h5>
+              <p>{{ processGuide.appointmentInformation }}</p>
+              <a
+                v-if="processGuide.appointmentUrl"
+                :href="processGuide.appointmentUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ t('catalog.bookAppointment') }}
+              </a>
+            </section>
+
+            <footer class="guide-source">
+              <div>
+                <span>
+                  {{
+                    t('catalog.verifiedOn', { date: formatVerifiedDate(processGuide.verifiedAt) })
+                  }}
+                </span>
+                <small>{{ t('catalog.verifyBeforeSubmitting') }}</small>
+              </div>
+              <a :href="processGuide.sourceUrl" target="_blank" rel="noopener noreferrer">
+                {{ processGuide.sourceTitle }}
+              </a>
+            </footer>
+          </template>
         </div>
       </li>
     </ul>
@@ -461,10 +598,13 @@ onBeforeUnmount(dismissApplicationToast)
 
 .process-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: flex-end;
   justify-self: end;
 }
 
+.guide-button,
 .requirements-button,
 .start-button {
   padding: 0.55rem 0.8rem;
@@ -473,6 +613,16 @@ onBeforeUnmount(dismissApplicationToast)
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.guide-button {
+  border-color: #0f766e;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.guide-button:hover {
+  background: #ccfbf1;
 }
 
 .requirements-button {
@@ -498,7 +648,8 @@ onBeforeUnmount(dismissApplicationToast)
   opacity: 0.65;
 }
 
-.requirements {
+.requirements,
+.process-guide {
   grid-column: 1 / -1;
   padding-top: 1rem;
   border-top: 1px solid #e2e8f0;
@@ -531,10 +682,119 @@ onBeforeUnmount(dismissApplicationToast)
   color: #64748b;
 }
 
-.requirements-list a {
+.requirements-list a,
+.process-guide a {
   color: #2563eb;
   font-weight: 600;
   text-decoration: none;
+}
+
+.process-guide {
+  display: grid;
+  gap: 1rem;
+}
+
+.guide-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.guide-heading h4 {
+  margin: 0.35rem 0 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.guide-label,
+.guide-facts span {
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.verified-badge {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.guide-section {
+  padding: 1rem;
+  border-radius: 0.65rem;
+  background: #f8fafc;
+}
+
+.guide-section h5 {
+  margin: 0 0 0.45rem;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.guide-section p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.guide-steps {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.4rem;
+  color: #334155;
+  line-height: 1.55;
+}
+
+.guide-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.guide-facts section {
+  padding: 1rem;
+  border: 1px solid #bae6fd;
+  border-radius: 0.65rem;
+  background: #f0f9ff;
+}
+
+.guide-facts p {
+  margin: 0.4rem 0 0;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.appointment-section a {
+  display: inline-block;
+  margin-top: 0.75rem;
+}
+
+.guide-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.25rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.guide-source div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.guide-source small {
+  color: #94a3b8;
 }
 
 .error {
@@ -618,8 +878,10 @@ onBeforeUnmount(dismissApplicationToast)
   transform: translateY(-0.75rem);
 }
 
-@media (max-width: 600px) {
-  .catalog-tools {
+@media (max-width: 760px) {
+  .catalog-tools,
+  .guide-heading,
+  .guide-source {
     align-items: stretch;
     flex-direction: column;
   }
@@ -641,13 +903,23 @@ onBeforeUnmount(dismissApplicationToast)
     justify-self: stretch;
   }
 
+  .guide-button,
   .requirements-button,
   .start-button {
-    flex: 1;
+    flex: 1 1 10rem;
   }
 
-  .requirements {
+  .requirements,
+  .process-guide {
     grid-column: auto;
+  }
+
+  .guide-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .verified-badge {
+    align-self: start;
   }
 
   .application-toast {

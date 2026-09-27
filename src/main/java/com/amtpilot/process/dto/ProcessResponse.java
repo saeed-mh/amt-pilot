@@ -10,6 +10,7 @@ public record ProcessResponse(
         String domain,
         int version,
         UUID authorityId,
-        String authorityName
+        String authorityName,
+        boolean guideAvailable
 ) {
 }

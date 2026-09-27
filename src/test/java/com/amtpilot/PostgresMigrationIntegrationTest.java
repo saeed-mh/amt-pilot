@@ -35,10 +35,10 @@ class PostgresMigrationIntegrationTest {
 				WHERE table_schema = 'public'
 				  AND table_name IN ('app_user', 'authority', 'official_source',
 				                     'process_definition', 'requirement_definition',
-				                     'application', 'audit_event')
+				                     'application', 'audit_event', 'process_guide')
 				""", Integer.class);
 
-		assertThat(tableCount).isEqualTo(7);
+		assertThat(tableCount).isEqualTo(8);
 	}
 
 	@Test
@@ -54,6 +54,21 @@ class PostgresMigrationIntegrationTest {
 		assertThat(requirementCount).isEqualTo(3);
 	}
 
+	@Test
+	void flywaySeedsAddressRegistrationProcessGuide() {
+		Integer guideCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM process_guide guide
+				JOIN process_definition process
+				  ON process.id = guide.process_id
+				WHERE process.code = 'ADDRESS_REGISTRATION'
+				  AND jsonb_array_length(guide.steps_en) = 5
+				  AND jsonb_array_length(guide.steps_de) = 5
+				  AND guide.source_url = 'https://www.dortmund.de/services/wohnsitzanmeldung.html'
+				""", Integer.class);
+
+		assertThat(guideCount).isEqualTo(1);
+	}
 	@Test
 	void flywaySeedsCoreDortmundProcessCatalog() {
 		Integer authorityCount = jdbcTemplate.queryForObject("""

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
+import com.amtpilot.process.dto.ProcessGuideResponse;
 import com.amtpilot.process.dto.ProcessResponse;
 import com.amtpilot.process.dto.RequirementResponse;
 import com.amtpilot.process.service.ProcessService;
@@ -47,5 +48,17 @@ public class ProcessController {
 
         return ResponseEntity.ok(
                 ApiResponse.success(requirements, traceId));
+    }
+
+    @GetMapping("/{processId}/guide")
+    public ResponseEntity<ApiResponse<ProcessGuideResponse>> getGuide(
+            @PathVariable UUID processId,
+            @RequestParam(defaultValue = "en") String language,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+
+        ProcessGuideResponse guide = processService.getGuide(processId, language);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(guide, traceId));
     }
 }

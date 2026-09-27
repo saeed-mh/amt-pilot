@@ -26,6 +26,7 @@ import com.amtpilot.application.exception.InvalidDocumentException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
 import com.amtpilot.user.exception.UserNotFoundException;
+import com.amtpilot.process.exception.ProcessGuideNotFoundException;
 import com.amtpilot.process.exception.ProcessNotFoundException;
 
 @RestControllerAdvice
@@ -126,6 +127,19 @@ public class GlobalExceptionHandler {
                                 .body(ApiResponse.failure(error, traceId(request)));
         }
 
+        @ExceptionHandler(ProcessGuideNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleProcessGuideNotFound(
+                        ProcessGuideNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "PROCESS_GUIDE_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
         @ExceptionHandler(ApplicationNotFoundException.class)
         ResponseEntity<ApiResponse<Void>> handleApplicationNotFound(
                         ApplicationNotFoundException exception,

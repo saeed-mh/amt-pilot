@@ -1,5 +1,6 @@
 package com.amtpilot.process.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.amtpilot.common.web.TraceIdFilter;
+import com.amtpilot.process.dto.ProcessGuideResponse;
 import com.amtpilot.process.dto.ProcessResponse;
 import com.amtpilot.process.dto.RequirementResponse;
 import com.amtpilot.process.service.ProcessService;
@@ -54,7 +56,8 @@ class ProcessControllerTest {
                                 "IMMIGRATION",
                                 1,
                                 authorityId,
-                                "Dortmund Immigration Office");
+                                "Dortmund Immigration Office",
+                                true);
 
                 when(processService.getProcessesByCity("Dortmund"))
                                 .thenReturn(List.of(process));
@@ -81,6 +84,8 @@ class ProcessControllerTest {
                                                 .value(authorityId.toString()))
                                 .andExpect(jsonPath("$.data[0].authorityName")
                                                 .value("Dortmund Immigration Office"))
+                                .andExpect(jsonPath("$.data[0].guideAvailable")
+                                                .value(true))
                                 .andExpect(jsonPath("$.traceId").isNotEmpty());
 
                 verify(processService).getProcessesByCity("Dortmund");
@@ -131,6 +136,47 @@ class ProcessControllerTest {
                                 .andExpect(jsonPath("$.traceId").isNotEmpty());
 
                 verify(processService).getRequirements(processId);
+        }
+
+        @Test
+        void returnsLocalizedProcessGuide() throws Exception {
+                UUID processId = UUID.randomUUID();
+                LocalDate verifiedAt = LocalDate.of(2026, 9, 27);
+
+                ProcessGuideResponse guide = new ProcessGuideResponse(
+                                processId,
+                                "Wohnsitz anmelden.",
+                                "Zuständigkeit prüfen.",
+                                List.of("Unterlagen vorbereiten."),
+                                "Innerhalb von zwei Wochen.",
+                                "Gebührenfrei.",
+                                true,
+                                "Termin erforderlich.",
+                                "https://example.com/appointment",
+                                "Wohnsitz in Dortmund anmelden",
+                                "https://example.com/source",
+                                verifiedAt);
+
+                when(processService.getGuide(processId, "de"))
+                                .thenReturn(guide);
+
+                mockMvc.perform(
+                                get("/api/v1/processes/{processId}/guide", processId)
+                                                .param("language", "de"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.data.processId")
+                                                .value(processId.toString()))
+                                .andExpect(jsonPath("$.data.overview")
+                                                .value("Wohnsitz anmelden."))
+                                .andExpect(jsonPath("$.data.steps[0]")
+                                                .value("Unterlagen vorbereiten."))
+                                .andExpect(jsonPath("$.data.appointmentRequired")
+                                                .value(true))
+                                .andExpect(jsonPath("$.data.verifiedAt")
+                                                .value("2026-09-27"));
+
+                verify(processService).getGuide(processId, "de");
         }
 
         @Test
