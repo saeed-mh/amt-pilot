@@ -6,7 +6,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 
 ## Current status
 
-**Last updated: 26 September 2026**
+**Last updated: 28 September 2026**
 
 ### Key features
 
@@ -15,17 +15,20 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 - Application management with interactive checklists and automatic completeness calculation
 - Validated PDF upload, preview, download, and deletion with automatic checklist synchronization
 - AI-powered analysis of uploaded PDFs, including document classification, structured field extraction, evidence, missing information, and warnings
-- Cross-document AI application review that compares uploaded documents with process requirements and produces readiness assessments and practical next steps
+- Grounded cross-document AI review that compares uploaded documents with process requirements and verified official guidance, then returns readiness assessments, citations, and practical next steps
+- Human-in-the-loop clarification: users can add context, save their answers, and request an answer-aware reanalysis without treating their statements as document evidence
 - Responsive Vue 3 interface with English and German language support
 - Automated backend, AI-service, and frontend quality checks
 
 ### AI workflow
 
 ```text
-PDF upload → text extraction → Gemini document analysis → requirement assessment → user-facing AI review
+PDF upload -> structured document analysis -> grounded application review -> user clarification -> answer-aware reanalysis
 ```
 
-Spring Boot manages users, applications, documents, and the analysis workflow. A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` to generate validated structured results. Temporary provider failures are handled without losing the application state.
+Spring Boot manages users, applications, documents, trusted process guidance, and the asynchronous analysis workflow. A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` to produce validated structured results. The review is grounded with verified official information and preserves source citations.
+
+Users can provide clarifying context and trigger another analysis. Their answers influence personalized guidance but remain untrusted context: they cannot replace uploaded evidence or override official information. Temporary provider failures are handled without losing the application state.
 
 The current extractor supports text-based PDFs. OCR for scanned image-only documents is planned.
 
