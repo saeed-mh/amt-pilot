@@ -1,6 +1,7 @@
 package com.amtpilot.ai.dto;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -10,5 +11,6 @@ public record AiApplicationAdviceRequest(
         String city,
         @JsonProperty("official_guide") AiOfficialProcessGuideRequest officialGuide,
         List<AiApplicationRequirementRequest> requirements,
-        List<AiAnalyzedDocumentRequest> documents) {
+        List<AiAnalyzedDocumentRequest> documents,
+        @JsonProperty("user_answers") Map<String, String> userAnswers) {
 }

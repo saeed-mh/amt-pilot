@@ -17,11 +17,13 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import com.amtpilot.ai.exception.AiServiceUnavailableException;
 import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
+import com.amtpilot.application.exception.ApplicationAdviceNotFoundException;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.DocumentNotFoundException;
 import com.amtpilot.application.exception.DocumentStorageException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
+import com.amtpilot.application.exception.InvalidAdviceAnswersException;
 import com.amtpilot.application.exception.InvalidDocumentException;
 import com.amtpilot.auth.exception.EmailAlreadyExistsException;
 import com.amtpilot.auth.exception.InvalidCredentialsException;
@@ -151,6 +153,34 @@ public class GlobalExceptionHandler {
                                 Map.of());
 
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(ApplicationAdviceNotFoundException.class)
+        ResponseEntity<ApiResponse<Void>> handleApplicationAdviceNotFound(
+                        ApplicationAdviceNotFoundException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "APPLICATION_ADVICE_NOT_FOUND",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(ApiResponse.failure(error, traceId(request)));
+        }
+
+        @ExceptionHandler(InvalidAdviceAnswersException.class)
+        ResponseEntity<ApiResponse<Void>> handleInvalidAdviceAnswers(
+                        InvalidAdviceAnswersException exception,
+                        HttpServletRequest request) {
+
+                ApiError error = new ApiError(
+                                "INVALID_ADVICE_ANSWERS",
+                                exception.getMessage(),
+                                Map.of());
+
+                return ResponseEntity.badRequest()
                                 .body(ApiResponse.failure(error, traceId(request)));
         }
 

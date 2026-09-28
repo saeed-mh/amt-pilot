@@ -3,12 +3,15 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { t, translateCode } from '@/i18n'
 import {
+  analyzeApplication,
   getApplication,
   getApplicationAdvice,
   getApplicationAnalyses,
+  saveApplicationAdviceAnswers,
 } from '@/services/application'
 
 const POLL_INTERVAL_MS = 2_000
+const ADDITIONAL_CONTEXT_KEY = '_additional_context'
 const RESULT_STATUSES = new Set([
   'ACTION_REQUIRED',
   'READY_TO_SUBMIT',
@@ -33,7 +36,9 @@ const emit = defineEmits(['application-updated'])
 const analyses = ref([])
 const advice = ref(null)
 const isLoading = ref(false)
+const isSavingAnswers = ref(false)
 const errorMessage = ref('')
+const answerDrafts = ref({})
 let pollTimer = null
 let loadVersion = 0
 
@@ -44,6 +49,10 @@ const isVisible = computed(
       RESULT_STATUSES.has(props.application.status) ||
       advice.value ||
       analyses.value.length > 0),
+)
+
+const hasAnswerDrafts = computed(() =>
+  Object.values(answerDrafts.value).some((answer) => answer.trim().length > 0),
 )
 
 function stopPolling() {
@@ -97,6 +106,13 @@ async function loadResults(applicationId) {
     if (currentVersion === loadVersion && props.application.id === applicationId) {
       analyses.value = loadedAnalyses
       advice.value = loadedAdvice
+      answerDrafts.value = Object.fromEntries([
+        ...(loadedAdvice?.questionsForUser ?? []).map((question) => [
+          question,
+          loadedAdvice.userAnswers?.[question] ?? '',
+        ]),
+        [ADDITIONAL_CONTEXT_KEY, loadedAdvice?.userAnswers?.[ADDITIONAL_CONTEXT_KEY] ?? ''],
+      ])
     }
   } catch (error) {
     if (currentVersion === loadVersion) {
@@ -106,6 +122,34 @@ async function loadResults(applicationId) {
     if (currentVersion === loadVersion) {
       isLoading.value = false
     }
+  }
+}
+
+async function saveAnswersAndReanalyze() {
+  const answers = Object.fromEntries(
+    Object.entries(answerDrafts.value)
+      .map(([question, answer]) => [question, answer.trim()])
+      .filter(([, answer]) => answer.length > 0),
+  )
+
+  if (Object.keys(answers).length === 0) {
+    return
+  }
+
+  isSavingAnswers.value = true
+  errorMessage.value = ''
+
+  try {
+    await saveApplicationAdviceAnswers(props.application.id, answers)
+    const updatedApplication = await analyzeApplication(props.application.id)
+
+    advice.value = null
+    analyses.value = []
+    emit('application-updated', updatedApplication)
+  } catch (error) {
+    errorMessage.value = error.message
+  } finally {
+    isSavingAnswers.value = false
   }
 }
 
@@ -261,13 +305,50 @@ onBeforeUnmount(() => {
           </ol>
         </section>
 
-        <section v-if="advice.questionsForUser?.length" class="result-section">
+        <section class="result-section clarification-section">
           <h5>{{ t('applications.questionsForYou') }}</h5>
-          <ul>
-            <li v-for="question in advice.questionsForUser" :key="question">
-              {{ question }}
-            </li>
-          </ul>
+          <p>{{ t('applications.answerQuestionsDescription') }}</p>
+          <form class="clarification-form" @submit.prevent="saveAnswersAndReanalyze">
+            <label
+              v-for="(question, index) in advice.questionsForUser"
+              :key="question"
+              :for="`clarification-${application.id}-${index}`"
+            >
+              <span>{{ question }}</span>
+              <textarea
+                :id="`clarification-${application.id}-${index}`"
+                v-model="answerDrafts[question]"
+                rows="3"
+                maxlength="2000"
+                :placeholder="t('applications.answerPlaceholder')"
+                :disabled="isSavingAnswers"
+              ></textarea>
+            </label>
+
+            <label :for="`additional-context-${application.id}`">
+              <span>{{ t('applications.additionalContextLabel') }}</span>
+              <textarea
+                :id="`additional-context-${application.id}`"
+                v-model="answerDrafts[ADDITIONAL_CONTEXT_KEY]"
+                rows="3"
+                maxlength="2000"
+                :placeholder="t('applications.additionalContextPlaceholder')"
+                :disabled="isSavingAnswers"
+              ></textarea>
+            </label>
+
+            <button
+              type="submit"
+              class="reanalyze-button"
+              :disabled="isSavingAnswers || !hasAnswerDrafts"
+            >
+              {{
+                isSavingAnswers
+                  ? t('applications.savingAnswers')
+                  : t('applications.saveAnswersAndReanalyze')
+              }}
+            </button>
+          </form>
         </section>
 
         <section
@@ -486,11 +567,18 @@ onBeforeUnmount(() => {
 .readiness-badge,
 .assessment-status {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.3rem 0.55rem;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 800;
+  text-align: center;
   white-space: nowrap;
+}
+
+.assessment-status {
+  align-self: start;
 }
 
 .readiness-ready_to_submit,
@@ -568,6 +656,71 @@ onBeforeUnmount(() => {
   padding-left: 1.25rem;
   color: #334155;
   line-height: 1.6;
+}
+
+.clarification-section {
+  padding: 0.85rem;
+  border: 1px solid #c4b5fd;
+  border-radius: 0.55rem;
+  background: #faf5ff;
+}
+
+.clarification-section > p {
+  margin-bottom: 0.75rem;
+}
+
+.clarification-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.clarification-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.clarification-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  background: #ffffff;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.clarification-form textarea:focus {
+  border-color: #7c3aed;
+  outline: 3px solid #ede9fe;
+}
+
+.reanalyze-button {
+  justify-self: start;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #7c3aed;
+  border-radius: 0.45rem;
+  background: #7c3aed;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reanalyze-button:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.reanalyze-button:disabled,
+.clarification-form textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .grounded-sources {

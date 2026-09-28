@@ -2,6 +2,7 @@ package com.amtpilot.application.controller;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import com.amtpilot.ai.dto.AiExtractedFieldResponse;
 import com.amtpilot.application.dto.ApplicationAdviceResponse;
 import com.amtpilot.application.dto.DocumentAnalysisResponse;
+import com.amtpilot.application.dto.UpdateAdviceAnswersRequest;
 import com.amtpilot.application.service.ApplicationAdviceService;
 import com.amtpilot.application.service.ApplicationDocumentAnalysisService;
 import com.amtpilot.common.web.ApiResponse;
@@ -112,6 +114,7 @@ class ApplicationAnalysisControllerTest {
                         List.of(),
                         List.of("Upload the missing document."),
                         List.of(),
+                        Map.of(),
                         List.of(),
                         "Guidance only; not legal advice.",
                         Instant.parse("2026-09-26T11:00:00Z"),
@@ -139,5 +142,58 @@ class ApplicationAnalysisControllerTest {
         verify(adviceService).getForApplication(
                 userId,
                 applicationId);
+    }
+
+    @Test
+    void savesClarificationAnswersForAuthenticatedUser() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID adviceId = UUID.randomUUID();
+        Jwt jwt = mock(Jwt.class);
+        Map<String, String> answers = Map.of(
+                "Do you have the original document?",
+                "Yes");
+        UpdateAdviceAnswersRequest request =
+                new UpdateAdviceAnswersRequest(answers);
+        ApplicationAdviceResponse advice =
+                new ApplicationAdviceResponse(
+                        adviceId,
+                        "ACTION_REQUIRED",
+                        "One answer was saved.",
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of("Do you have the original document?"),
+                        answers,
+                        List.of(),
+                        "Guidance only; not legal advice.",
+                        Instant.parse("2026-09-26T11:00:00Z"),
+                        Instant.parse("2026-09-26T11:05:00Z"));
+
+        when(jwt.getSubject()).thenReturn(userId.toString());
+        when(adviceService.updateAnswers(
+                userId,
+                applicationId,
+                request))
+                .thenReturn(advice);
+
+        ResponseEntity<ApiResponse<ApplicationAdviceResponse>> response =
+                analysisController.updateAdviceAnswers(
+                        jwt,
+                        applicationId,
+                        request,
+                        "trace-answers");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().data().userAnswers())
+                .containsEntry(
+                        "Do you have the original document?",
+                        "Yes");
+
+        verify(adviceService).updateAnswers(
+                userId,
+                applicationId,
+                request);
     }
 }

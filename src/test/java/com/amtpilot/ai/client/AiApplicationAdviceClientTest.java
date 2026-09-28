@@ -10,6 +10,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.util.List;
 import java.time.LocalDate;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,10 @@ class AiApplicationAdviceClientTest {
                             "verified_at": "2026-09-27"
                           },
                           "requirements": [],
-                          "documents": []
+                          "documents": [],
+                          "user_answers": {
+                            "Do you have the original document?": "Yes"
+                          }
                         }
                         """))
                 .andRespond(withSuccess("""
@@ -107,7 +111,10 @@ class AiApplicationAdviceClientTest {
                                 "https://example.test/guide",
                                 LocalDate.of(2026, 9, 27)),
                         List.of(),
-                        List.of()));
+                        List.of(),
+                        Map.of(
+                                "Do you have the original document?",
+                                "Yes")));
 
         assertThat(response.readiness())
                 .isEqualTo("ACTION_REQUIRED");
@@ -139,7 +146,8 @@ class AiApplicationAdviceClientTest {
                         "Dortmund",
                         null,
                         List.of(),
-                        List.of());
+                        List.of(),
+                        Map.of());
 
         assertThatThrownBy(() -> client.advise(request))
                 .isInstanceOf(

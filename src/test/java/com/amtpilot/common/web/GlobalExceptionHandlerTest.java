@@ -4,10 +4,12 @@ import java.util.UUID;
 
 import com.amtpilot.ai.exception.AiServiceUnavailableException;
 import com.amtpilot.application.exception.ActiveApplicationAlreadyExistsException;
+import com.amtpilot.application.exception.ApplicationAdviceNotFoundException;
 import com.amtpilot.application.exception.ChecklistItemNotFoundException;
 import com.amtpilot.application.exception.DocumentNotFoundException;
 import com.amtpilot.application.exception.DocumentStorageException;
 import com.amtpilot.application.exception.InvalidApplicationStatusTransitionException;
+import com.amtpilot.application.exception.InvalidAdviceAnswersException;
 import com.amtpilot.application.exception.InvalidDocumentException;
 import com.amtpilot.enums.ApplicationStatus;
 import com.amtpilot.user.exception.UserNotFoundException;
@@ -42,6 +44,9 @@ class GlobalExceptionHandlerTest {
 
         private static final UUID CHECKLIST_ITEM_ID = UUID.fromString(
                         "33333333-3333-3333-3333-333333333333");
+
+        private static final UUID APPLICATION_ID = UUID.fromString(
+                        "22222222-2222-2222-2222-222222222222");
 
         private MockMvc mockMvc;
 
@@ -253,6 +258,39 @@ class GlobalExceptionHandlerTest {
                 assertTraceIdMatchesResponseHeader(result);
         }
 
+        @Test
+        void returnsApplicationAdviceNotFoundError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/application-advice-not-found"))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("APPLICATION_ADVICE_NOT_FOUND"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "AI application review not found "
+                                                                                + "for application: "
+                                                                                + APPLICATION_ID))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
+        @Test
+        void returnsInvalidAdviceAnswersError() throws Exception {
+                MvcResult result = mockMvc.perform(
+                                get("/test/invalid-advice-answers"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error.code")
+                                                .value("INVALID_ADVICE_ANSWERS"))
+                                .andExpect(jsonPath("$.error.message")
+                                                .value(
+                                                                "Answers must correspond to questions "
+                                                                                + "from the current AI review"))
+                                .andReturn();
+
+                assertTraceIdMatchesResponseHeader(result);
+        }
+
         private void assertTraceIdMatchesResponseHeader(MvcResult result) throws Exception {
                 String traceId = result.getResponse().getHeader(TraceIdFilter.TRACE_ID_HEADER);
                 assertThat(traceId).isNotBlank();
@@ -317,7 +355,18 @@ class GlobalExceptionHandlerTest {
                 @GetMapping("/test/ai-service-unavailable")
                 void aiServiceUnavailable() {
                         throw new AiServiceUnavailableException(
-                                        "Sensitive AI detail");
+                                "Sensitive AI detail");
+                }
+
+                @GetMapping("/test/application-advice-not-found")
+                void applicationAdviceNotFound() {
+                        throw new ApplicationAdviceNotFoundException(
+                                        APPLICATION_ID);
+                }
+
+                @GetMapping("/test/invalid-advice-answers")
+                void invalidAdviceAnswers() {
+                        throw new InvalidAdviceAnswersException();
                 }
         }
 

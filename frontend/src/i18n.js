@@ -150,6 +150,14 @@ const messages = {
     'applications.inconsistencies': 'Inconsistencies',
     'applications.nextSteps': 'Next steps',
     'applications.questionsForYou': 'Questions for you',
+    'applications.answerQuestionsDescription':
+      'Answer any AI questions or add information about your situation. It will be used as context for the next AI review.',
+    'applications.answerPlaceholder': 'Write your answer',
+    'applications.additionalContextLabel': 'Additional information for AI',
+    'applications.additionalContextPlaceholder':
+      'For example: I have the original document, but I have not uploaded it yet.',
+    'applications.saveAnswersAndReanalyze': 'Save answers and reanalyze',
+    'applications.savingAnswers': 'Saving answers...',
     'applications.analysisSummary': 'Summary',
     'applications.extractedInformation': 'Extracted information',
     'applications.noExtractedInformation': 'No information was extracted.',
@@ -386,6 +394,14 @@ const messages = {
     'applications.inconsistencies': 'Unstimmigkeiten',
     'applications.nextSteps': 'Nächste Schritte',
     'applications.questionsForYou': 'Fragen an Sie',
+    'applications.answerQuestionsDescription':
+      'Beantworten Sie die KI-Fragen oder ergänzen Sie Informationen zu Ihrer Situation. Diese werden als Kontext für die nächste KI-Prüfung verwendet.',
+    'applications.answerPlaceholder': 'Antwort eingeben',
+    'applications.additionalContextLabel': 'Zusätzliche Informationen für die KI',
+    'applications.additionalContextPlaceholder':
+      'Zum Beispiel: Ich habe das Originaldokument, aber noch nicht hochgeladen.',
+    'applications.saveAnswersAndReanalyze': 'Antworten speichern und erneut analysieren',
+    'applications.savingAnswers': 'Antworten werden gespeichert...',
     'applications.analysisSummary': 'Zusammenfassung',
     'applications.extractedInformation': 'Extrahierte Informationen',
     'applications.noExtractedInformation': 'Es wurden keine Informationen extrahiert.',

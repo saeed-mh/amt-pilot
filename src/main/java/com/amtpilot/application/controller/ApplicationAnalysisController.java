@@ -9,16 +9,21 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.amtpilot.application.dto.ApplicationAdviceResponse;
 import com.amtpilot.application.dto.DocumentAnalysisResponse;
+import com.amtpilot.application.dto.UpdateAdviceAnswersRequest;
 import com.amtpilot.application.service.ApplicationAdviceService;
 import com.amtpilot.application.service.ApplicationDocumentAnalysisService;
 import com.amtpilot.common.web.ApiResponse;
 import com.amtpilot.common.web.TraceIdFilter;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/applications")
@@ -68,5 +73,23 @@ public class ApplicationAnalysisController {
                 ApiResponse.success(
                         advice.orElse(null),
                         traceId));
+    }
+
+    @PutMapping("/{applicationId}/advice/answers")
+    public ResponseEntity<ApiResponse<ApplicationAdviceResponse>> updateAdviceAnswers(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID applicationId,
+            @Valid @RequestBody UpdateAdviceAnswersRequest request,
+            @RequestAttribute(TraceIdFilter.TRACE_ID_ATTRIBUTE) String traceId) {
+
+        UUID userId = UUID.fromString(jwt.getSubject());
+
+        ApplicationAdviceResponse advice = adviceService.updateAnswers(
+                userId,
+                applicationId,
+                request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(advice, traceId));
     }
 }

@@ -69,6 +69,20 @@ class PostgresMigrationIntegrationTest {
 
 		assertThat(guideCount).isEqualTo(1);
 	}
+
+	@Test
+	void flywayAddsUserAnswersToApplicationAdvice() {
+		String dataType = jdbcTemplate.queryForObject("""
+				SELECT data_type
+				FROM information_schema.columns
+				WHERE table_schema = 'public'
+				  AND table_name = 'application_advice'
+				  AND column_name = 'user_answers'
+				""", String.class);
+
+		assertThat(dataType).isEqualTo("jsonb");
+	}
+
 	@Test
 	void flywaySeedsCoreDortmundProcessCatalog() {
 		Integer authorityCount = jdbcTemplate.queryForObject("""

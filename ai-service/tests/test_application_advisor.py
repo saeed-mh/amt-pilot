@@ -57,6 +57,7 @@ def application_request() -> ApplicationAdviceRequest:
             "verified_at": "2026-09-27",
         },
         documents=[],
+        user_answers={},
     )
 
 
@@ -211,3 +212,29 @@ def test_invalid_sample_document_requires_action_and_clear_replacement_step() ->
         ("Replace sample_confirmation.pdf with a valid, official Landlord confirmation."),
         "Book an appointment after replacing the document.",
     ]
+
+
+def test_includes_saved_user_answers_in_model_context() -> None:
+    advisor, structured_model = create_advisor_with_fake_model()
+    request_data = application_request().model_dump()
+    request_data["user_answers"] = {
+        "Are civil status documents relevant?": "No, I am registering alone."
+    }
+    request = ApplicationAdviceRequest.model_validate(request_data)
+    structured_model.invoke.return_value = ApplicationAdviceDraft(
+        readiness="ACTION_REQUIRED",
+        summary="More information is required.",
+        requirement_assessments=[],
+        inconsistencies=[],
+        next_steps=[],
+        questions_for_user=[],
+        official_guide_sections_used=[],
+        disclaimer="Guidance only; not legal advice.",
+    )
+
+    advisor.advise(request)
+
+    messages = structured_model.invoke.call_args.args[0]
+    assert "visibly acknowledge every relevant answer" in messages[0].content
+    assert "Are civil status documents relevant?" in messages[1].content
+    assert "No, I am registering alone." in messages[1].content

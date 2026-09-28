@@ -88,6 +88,7 @@ class ApplicationAdviceRequest(BaseModel):
     official_guide: OfficialProcessGuide | None = None
     requirements: list[ApplicationRequirement]
     documents: list[AnalyzedDocument]
+    user_answers: dict[str, str] = Field(default_factory=dict)
 
 
 class RequirementAssessment(BaseModel):

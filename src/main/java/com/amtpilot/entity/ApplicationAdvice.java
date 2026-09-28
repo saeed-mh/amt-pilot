@@ -2,6 +2,7 @@ package com.amtpilot.entity;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -69,6 +70,10 @@ public class ApplicationAdvice {
     private List<String> questionsForUser;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "user_answers", nullable = false, columnDefinition = "jsonb")
+    private Map<String, String> userAnswers = Map.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "official_source_references", nullable = false, columnDefinition = "jsonb")
     private List<AiOfficialSourceReferenceResponse> officialSourceReferences;
 
@@ -97,6 +102,10 @@ public class ApplicationAdvice {
         this.officialSourceReferences = List.copyOf(
                 advice.officialSourceReferences());
         this.disclaimer = advice.disclaimer();
+    }
+
+    public void replaceUserAnswers(Map<String, String> answers) {
+        this.userAnswers = Map.copyOf(answers);
     }
 
     public UUID getId() {
@@ -129,6 +138,10 @@ public class ApplicationAdvice {
 
     public List<String> getQuestionsForUser() {
         return questionsForUser;
+    }
+
+    public Map<String, String> getUserAnswers() {
+        return userAnswers;
     }
 
     public List<AiOfficialSourceReferenceResponse> getOfficialSourceReferences() {

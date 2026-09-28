@@ -29,6 +29,7 @@ def request_body() -> dict:
         ],
         "official_guide": None,
         "documents": [],
+        "user_answers": {},
     }
 
 
@@ -63,9 +64,7 @@ def test_returns_application_advice() -> None:
 
 def test_returns_service_unavailable_when_provider_fails() -> None:
     advisor = Mock(spec=ApplicationAdvisor)
-    advisor.advise.side_effect = DocumentAnalysisUnavailableError(
-        "provider unavailable"
-    )
+    advisor.advise.side_effect = DocumentAnalysisUnavailableError("provider unavailable")
     app.dependency_overrides[get_application_advisor] = lambda: advisor
 
     try:

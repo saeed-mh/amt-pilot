@@ -1,6 +1,8 @@
 package com.amtpilot.application.service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,7 +16,10 @@ import com.amtpilot.ai.dto.AiApplicationRequirementRequest;
 import com.amtpilot.ai.dto.AiDocumentAnalysisResponse;
 import com.amtpilot.ai.dto.AiOfficialProcessGuideRequest;
 import com.amtpilot.application.dto.ApplicationAdviceResponse;
+import com.amtpilot.application.dto.UpdateAdviceAnswersRequest;
+import com.amtpilot.application.exception.ApplicationAdviceNotFoundException;
 import com.amtpilot.application.exception.ApplicationNotFoundException;
+import com.amtpilot.application.exception.InvalidAdviceAnswersException;
 import com.amtpilot.entity.Application;
 import com.amtpilot.entity.ApplicationAdvice;
 import com.amtpilot.entity.ApplicationChecklistItem;
@@ -30,6 +35,9 @@ import com.amtpilot.repository.ProcessGuideRepository;
 
 @Service
 public class ApplicationAdviceService {
+
+    private static final String ADDITIONAL_CONTEXT_KEY =
+            "_additional_context";
 
     private final ApplicationRepository applicationRepository;
     private final ApplicationChecklistItemRepository checklistRepository;
@@ -70,18 +78,25 @@ public class ApplicationAdviceService {
                 .findByDocumentApplicationIdOrderByCreatedAtDesc(
                         applicationId);
 
+        Optional<ApplicationAdvice> existingAdvice = adviceRepository
+                .findByApplicationId(applicationId);
+
+        Map<String, String> userAnswers = existingAdvice
+                .map(ApplicationAdvice::getUserAnswers)
+                .orElseGet(Map::of);
+
         AiApplicationAdviceResponse result = aiClient.advise(
                 toAiRequest(
                         application,
                         checklistItems,
-                        analyses));
+                        analyses,
+                        userAnswers));
 
-        return adviceRepository
-                .findByApplicationId(applicationId)
-                .map(existingAdvice -> {
-                    existingAdvice.update(result);
+        return existingAdvice
+                .map(storedAdvice -> {
+                    storedAdvice.update(result);
                     return adviceRepository.saveAndFlush(
-                            existingAdvice);
+                            storedAdvice);
                 })
                 .orElseGet(() -> adviceRepository.saveAndFlush(
                         new ApplicationAdvice(
@@ -100,6 +115,41 @@ public class ApplicationAdviceService {
                 .map(this::toResponse);
     }
 
+    public ApplicationAdviceResponse updateAnswers(
+            UUID userId,
+            UUID applicationId,
+            UpdateAdviceAnswersRequest request) {
+
+        ownedApplication(userId, applicationId);
+
+        ApplicationAdvice advice = adviceRepository
+                .findByApplicationId(applicationId)
+                .orElseThrow(
+                        () -> new ApplicationAdviceNotFoundException(
+                                applicationId));
+
+        boolean containsUnsupportedAnswer = request.answers()
+                .keySet()
+                .stream()
+                .anyMatch(key -> !ADDITIONAL_CONTEXT_KEY.equals(key)
+                        && !advice.getQuestionsForUser().contains(key));
+
+        if (containsUnsupportedAnswer) {
+            throw new InvalidAdviceAnswersException();
+        }
+
+        Map<String, String> normalizedAnswers = new LinkedHashMap<>();
+        request.answers().forEach(
+                (question, answer) -> normalizedAnswers.put(
+                        question,
+                        answer.trim()));
+
+        advice.replaceUserAnswers(normalizedAnswers);
+
+        return toResponse(
+                adviceRepository.saveAndFlush(advice));
+    }
+
     private Application ownedApplication(
             UUID userId,
             UUID applicationId) {
@@ -114,7 +164,8 @@ public class ApplicationAdviceService {
     private AiApplicationAdviceRequest toAiRequest(
             Application application,
             List<ApplicationChecklistItem> checklistItems,
-            List<ApplicationDocumentAnalysis> analyses) {
+            List<ApplicationDocumentAnalysis> analyses,
+            Map<String, String> userAnswers) {
 
         ProcessDefinition process = application.getProcess();
 
@@ -145,7 +196,8 @@ public class ApplicationAdviceService {
                 process.getCity(),
                 officialGuide,
                 requirements,
-                documents);
+                documents,
+                userAnswers);
     }
 
     private AiOfficialProcessGuideRequest toOfficialGuide(
@@ -201,6 +253,7 @@ public class ApplicationAdviceService {
                 advice.getInconsistencies(),
                 advice.getNextSteps(),
                 advice.getQuestionsForUser(),
+                advice.getUserAnswers(),
                 advice.getOfficialSourceReferences(),
                 advice.getDisclaimer(),
                 advice.getCreatedAt(),

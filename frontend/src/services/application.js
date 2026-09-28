@@ -46,6 +46,14 @@ export function getApplicationAdvice(applicationId) {
   })
 }
 
+export function saveApplicationAdviceAnswers(applicationId, answers) {
+  return apiRequest(`/api/v1/applications/${applicationId}/advice/answers`, {
+    authenticated: true,
+    method: 'PUT',
+    body: JSON.stringify({ answers }),
+  })
+}
+
 export function getApplicationChecklist(applicationId) {
   return apiRequest(`/api/v1/applications/${applicationId}/checklist`, {
     authenticated: true,

@@ -61,6 +61,7 @@ public class SecurityConfiguration {
 				List.of(
 						"GET",
 						"POST",
+						"PUT",
 						"PATCH",
 						"DELETE",
 						"OPTIONS"));
