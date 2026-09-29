@@ -6,7 +6,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 
 ## Current status
 
-**Last updated: 28 September 2026**
+**Last updated: 29 September 2026**
 
 ### Key features
 
@@ -15,7 +15,8 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 - Application management with interactive checklists and automatic completeness calculation
 - Validated PDF upload, preview, download, and deletion with automatic checklist synchronization
 - AI-powered analysis of uploaded PDFs, including document classification, structured field extraction, evidence, missing information, and warnings
-- Grounded cross-document AI review that compares uploaded documents with process requirements and verified official guidance, then returns readiness assessments, citations, and practical next steps
+- Grounded RAG review using Gemini embeddings and PostgreSQL `pgvector` to retrieve the most relevant official guidance before assessing uploaded documents
+- Source-backed readiness assessments showing satisfied, missing, or unclear requirements with citations and practical next steps
 - Human-in-the-loop clarification: users can add context, save their answers, and request an answer-aware reanalysis without treating their statements as document evidence
 - Responsive Vue 3 interface with English and German language support
 - Automated backend, AI-service, and frontend quality checks
@@ -23,10 +24,13 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 ### AI workflow
 
 ```text
-PDF upload -> structured document analysis -> grounded application review -> user clarification -> answer-aware reanalysis
+Official guide -> chunks -> Gemini embeddings -> pgvector index
+PDF upload -> structured extraction -> semantic retrieval -> grounded review -> cited guidance
 ```
 
-Spring Boot manages users, applications, documents, trusted process guidance, and the asynchronous analysis workflow. A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` to produce validated structured results. The review is grounded with verified official information and preserves source citations.
+Spring Boot manages users, applications, documents, trusted process guidance, vector storage, and the asynchronous analysis workflow. On the first analysis, official guidance is split into searchable chunks, embedded with Gemini, and stored in PostgreSQL. For each review, AmtPilot embeds the application context and retrieves the five closest official chunks using cosine similarity.
+
+A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` for structured document extraction, embeddings, and the final application review. Only the retrieved official context is sent to the review model, while Spring Boot attaches deterministic source citations to the result. The first RAG corpus covers Dortmund Address Registration.
 
 Users can provide clarifying context and trigger another analysis. Their answers influence personalized guidance but remain untrusted context: they cannot replace uploaded evidence or override official information. Temporary provider failures are handled without losing the application state.
 
@@ -37,7 +41,7 @@ The current extractor supports text-based PDFs. OCR for scanned image-only docum
 - **Backend:** Java, Spring Boot, Spring Security, JPA
 - **AI service:** Python, FastAPI, LangChain, Google Gemini, Pydantic
 - **Frontend:** Vue 3, Vue Router, Vite
-- **Data and infrastructure:** PostgreSQL, Flyway, Docker Compose
+- **Data and infrastructure:** PostgreSQL, pgvector, Flyway, Docker Compose
 - **Quality:** JUnit, Mockito, Testcontainers, Pytest, Ruff, ESLint
 
 ## Run locally
@@ -50,7 +54,10 @@ Create a root `.env` file from `.env.example` and configure the required secrets
 JWT_SECRET=replace-with-a-secret-with-at-least-32-characters
 GOOGLE_API_KEY=replace-with-your-google-ai-api-key
 GOOGLE_MODEL=gemini-3.5-flash-lite
-AI_SERVICE_URL=http://localhost:8001
+GOOGLE_EMBEDDING_MODEL=gemini-embedding-001
+EMBEDDING_DIMENSION=768
+AI_RETRIEVAL_LIMIT=5
+AI_SERVICE_URL=http://localhost:8000
 ```
 
 Start PostgreSQL and the Spring Boot backend:
@@ -83,7 +90,7 @@ Activate the virtual environment. On Windows PowerShell, use `.venv\Scripts\Acti
 
 ```bash
 python -m pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8000
 ```
 
 Use sample or properly redacted documents during development. Do not upload sensitive personal documents.
@@ -94,8 +101,8 @@ Use sample or properly redacted documents during development. Do not upload sens
 - Backend API: <http://localhost:8080/>
 - Backend Swagger UI: <http://localhost:8080/swagger-ui.html>
 - Backend health check: <http://localhost:8080/actuator/health>
-- AI service Swagger UI: <http://localhost:8001/docs>
-- AI service health check: <http://localhost:8001/health>
+- AI service Swagger UI: <http://localhost:8000/docs>
+- AI service health check: <http://localhost:8000/health>
 
 ## Development checks
 
