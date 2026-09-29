@@ -10,6 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     google_api_key: SecretStr
     google_model: str = "gemini-3.5-flash-lite"
+    google_embedding_model: str = "gemini-embedding-001"
+    embedding_dimension: int = 768
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

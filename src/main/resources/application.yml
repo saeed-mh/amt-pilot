@@ -47,4 +47,7 @@ app:
   storage:
     upload-directory: ${UPLOAD_DIR:./uploads}
   ai:
-    base-url: ${AI_SERVICE_URL:http://localhost:8001}
+    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+    embedding-model: ${GOOGLE_EMBEDDING_MODEL:gemini-embedding-001}
+    embedding-dimension: ${EMBEDDING_DIMENSION:768}
+    retrieval-limit: ${AI_RETRIEVAL_LIMIT:5}

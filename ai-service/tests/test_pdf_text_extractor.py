@@ -33,30 +33,33 @@ def test_extracts_text_and_preserves_page_numbers() -> None:
     ):
         result = PdfTextExtractor().extract_text(b"fake-pdf-content")
 
-    assert result == (
-        "--- Page 1 ---\nFirst page text\n\n"
-        "--- Page 3 ---\nThird page text"
-    )
+    assert result == ("--- Page 1 ---\nFirst page text\n\n--- Page 3 ---\nThird page text")
 
 
 def test_rejects_encrypted_pdf() -> None:
     reader = Mock()
     reader.is_encrypted = True
 
-    with patch(
-        "app.services.pdf_text_extractor.PdfReader",
-        return_value=reader,
-    ), pytest.raises(ValueError, match="Encrypted PDFs are not supported"):
+    with (
+        patch(
+            "app.services.pdf_text_extractor.PdfReader",
+            return_value=reader,
+        ),
+        pytest.raises(ValueError, match="Encrypted PDFs are not supported"),
+    ):
         PdfTextExtractor().extract_text(b"encrypted-pdf")
 
 
 def test_rejects_unreadable_pdf() -> None:
-    with patch(
-        "app.services.pdf_text_extractor.PdfReader",
-        side_effect=PdfReadError("Invalid PDF"),
-    ), pytest.raises(
-        ValueError,
-        match="The uploaded file is not a readable PDF",
+    with (
+        patch(
+            "app.services.pdf_text_extractor.PdfReader",
+            side_effect=PdfReadError("Invalid PDF"),
+        ),
+        pytest.raises(
+            ValueError,
+            match="The uploaded file is not a readable PDF",
+        ),
     ):
         PdfTextExtractor().extract_text(b"invalid-pdf")
 
@@ -69,11 +72,14 @@ def test_rejects_pdf_without_readable_text() -> None:
     reader.is_encrypted = False
     reader.pages = [page]
 
-    with patch(
-        "app.services.pdf_text_extractor.PdfReader",
-        return_value=reader,
-    ), pytest.raises(
-        ValueError,
-        match="The PDF does not contain readable text",
+    with (
+        patch(
+            "app.services.pdf_text_extractor.PdfReader",
+            return_value=reader,
+        ),
+        pytest.raises(
+            ValueError,
+            match="The PDF does not contain readable text",
+        ),
     ):
         PdfTextExtractor().extract_text(b"image-only-pdf")

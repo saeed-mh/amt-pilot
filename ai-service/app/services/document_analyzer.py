@@ -46,9 +46,7 @@ class DocumentAnalyzer:
             result = self.structured_model.invoke(
                 [
                     SystemMessage(content=SYSTEM_PROMPT),
-                    HumanMessage(
-                        content=f"Analyze the following document:\n\n{cleaned_text}"
-                    ),
+                    HumanMessage(content=f"Analyze the following document:\n\n{cleaned_text}"),
                 ]
             )
         except ModelAPIError as exception:

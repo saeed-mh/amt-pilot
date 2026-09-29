@@ -35,10 +35,11 @@ class PostgresMigrationIntegrationTest {
 				WHERE table_schema = 'public'
 				  AND table_name IN ('app_user', 'authority', 'official_source',
 				                     'process_definition', 'requirement_definition',
-				                     'application', 'audit_event', 'process_guide')
+				                     'application', 'audit_event', 'process_guide',
+				                     'process_guide_chunk')
 				""", Integer.class);
 
-		assertThat(tableCount).isEqualTo(8);
+		assertThat(tableCount).isEqualTo(9);
 	}
 
 	@Test
@@ -81,6 +82,33 @@ class PostgresMigrationIntegrationTest {
 				""", String.class);
 
 		assertThat(dataType).isEqualTo("jsonb");
+	}
+
+	@Test
+	void flywaySeedsVectorChunksForAddressRegistrationGuide() {
+		Integer chunkCount = jdbcTemplate.queryForObject("""
+				SELECT COUNT(*)
+				FROM process_guide_chunk chunk
+				JOIN process_definition process
+				  ON process.id = chunk.process_id
+				WHERE process.code = 'ADDRESS_REGISTRATION'
+				  AND chunk.language = 'en'
+				  AND chunk.source_url =
+				      'https://www.dortmund.de/services/wohnsitzanmeldung.html'
+				""", Integer.class);
+
+		String embeddingType = jdbcTemplate.queryForObject("""
+				SELECT format_type(attribute.atttypid, attribute.atttypmod)
+				FROM pg_attribute attribute
+				JOIN pg_class relation
+				  ON relation.oid = attribute.attrelid
+				WHERE relation.relname = 'process_guide_chunk'
+				  AND attribute.attname = 'embedding'
+				  AND NOT attribute.attisdropped
+				""", String.class);
+
+		assertThat(chunkCount).isEqualTo(10);
+		assertThat(embeddingType).isEqualTo("vector(768)");
 	}
 
 	@Test

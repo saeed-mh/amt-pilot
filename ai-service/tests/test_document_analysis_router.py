@@ -59,9 +59,7 @@ def test_analyzes_uploaded_pdf() -> None:
     assert response.status_code == 200
     assert response.json() == expected_analysis.model_dump()
     extractor.extract_text.assert_called_once_with(b"fake-pdf-content")
-    analyzer.analyze_text.assert_called_once_with(
-        "--- Page 1 ---\nName: Max Mustermann"
-    )
+    analyzer.analyze_text.assert_called_once_with("--- Page 1 ---\nName: Max Mustermann")
 
 
 def test_rejects_non_pdf_upload() -> None:
@@ -94,9 +92,7 @@ def test_rejects_non_pdf_upload() -> None:
 
 def test_rejects_pdf_without_readable_text() -> None:
     extractor = Mock(spec=PdfTextExtractor)
-    extractor.extract_text.side_effect = ValueError(
-        "The PDF does not contain readable text"
-    )
+    extractor.extract_text.side_effect = ValueError("The PDF does not contain readable text")
 
     analyzer = Mock(spec=DocumentAnalyzer)
 
@@ -159,9 +155,7 @@ def test_returns_service_unavailable_when_ai_provider_fails() -> None:
     extractor.extract_text.return_value = "--- Page 1 ---\nDocument text"
 
     analyzer = Mock(spec=DocumentAnalyzer)
-    analyzer.analyze_text.side_effect = DocumentAnalysisUnavailableError(
-        "provider unavailable"
-    )
+    analyzer.analyze_text.side_effect = DocumentAnalysisUnavailableError("provider unavailable")
 
     app.dependency_overrides[get_pdf_text_extractor] = lambda: extractor
     app.dependency_overrides[get_document_analyzer] = lambda: analyzer
@@ -185,6 +179,4 @@ def test_returns_service_unavailable_when_ai_provider_fails() -> None:
     assert response.json() == {"detail": AI_UNAVAILABLE_MESSAGE}
     assert response.headers["retry-after"] == "30"
     extractor.extract_text.assert_called_once_with(b"fake-pdf-content")
-    analyzer.analyze_text.assert_called_once_with(
-        "--- Page 1 ---\nDocument text"
-    )
+    analyzer.analyze_text.assert_called_once_with("--- Page 1 ---\nDocument text")

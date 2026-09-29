@@ -35,13 +35,14 @@ import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ApplicationDocumentAnalysis;
 import com.amtpilot.entity.OfficialSource;
 import com.amtpilot.entity.ProcessDefinition;
-import com.amtpilot.entity.ProcessGuide;
 import com.amtpilot.entity.RequirementDefinition;
 import com.amtpilot.repository.ApplicationAdviceRepository;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationDocumentAnalysisRepository;
 import com.amtpilot.repository.ApplicationRepository;
 import com.amtpilot.repository.ProcessGuideRepository;
+import com.amtpilot.process.dto.ProcessGuideChunk;
+import com.amtpilot.process.service.ProcessGuideRetrievalService;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicationAdviceServiceTest {
@@ -62,6 +63,9 @@ class ApplicationAdviceServiceTest {
     private ProcessGuideRepository processGuideRepository;
 
     @Mock
+    private ProcessGuideRetrievalService guideRetrievalService;
+
+    @Mock
     private AiApplicationAdviceClient aiClient;
 
     private ApplicationAdviceService adviceService;
@@ -74,6 +78,7 @@ class ApplicationAdviceServiceTest {
                 analysisRepository,
                 adviceRepository,
                 processGuideRepository,
+                guideRetrievalService,
                 aiClient);
     }
 
@@ -90,7 +95,6 @@ class ApplicationAdviceServiceTest {
         RequirementDefinition requirement =
                 mock(RequirementDefinition.class);
         OfficialSource source = mock(OfficialSource.class);
-        ProcessGuide guide = mock(ProcessGuide.class);
         ApplicationDocumentAnalysis analysis =
                 mock(ApplicationDocumentAnalysis.class);
         ApplicationDocument document =
@@ -110,18 +114,6 @@ class ApplicationAdviceServiceTest {
         when(requirement.getSource()).thenReturn(source);
         when(source.getUrl()).thenReturn("https://example.test/source");
         when(source.getTitle()).thenReturn("Official requirements");
-
-        when(guide.getOverviewEn()).thenReturn("Register your new residence.");
-        when(guide.getEligibilityEn()).thenReturn("Residents can register.");
-        when(guide.getStepsEn()).thenReturn(List.of("Collect documents."));
-        when(guide.getDeadlineEn()).thenReturn("Within two weeks.");
-        when(guide.getFeeEn()).thenReturn("Free of charge.");
-        when(guide.isAppointmentRequired()).thenReturn(true);
-        when(guide.getAppointmentInformationEn()).thenReturn("Book an appointment.");
-        when(guide.getAppointmentUrl()).thenReturn("https://example.test/appointment");
-        when(guide.getSourceTitle()).thenReturn("Official registration guide");
-        when(guide.getSourceUrl()).thenReturn("https://example.test/guide");
-        when(guide.getVerifiedAt()).thenReturn(LocalDate.of(2026, 9, 27));
 
         when(analysis.getDocument()).thenReturn(document);
         when(document.getOriginalFilename()).thenReturn("confirmation.pdf");
@@ -150,8 +142,16 @@ class ApplicationAdviceServiceTest {
                 .findByDocumentApplicationIdOrderByCreatedAtDesc(
                         applicationId))
                 .thenReturn(List.of(analysis));
-        when(processGuideRepository.findByProcessId(processId))
-                .thenReturn(Optional.of(guide));
+        when(guideRetrievalService.retrieve(
+                org.mockito.ArgumentMatchers.eq(processId),
+                any(String.class)))
+                .thenReturn(List.of(new ProcessGuideChunk(
+                        UUID.randomUUID(),
+                        "deadline",
+                        "Within two weeks.",
+                        "Official registration guide",
+                        "https://example.test/guide",
+                        LocalDate.of(2026, 9, 27))));
 
         AiApplicationAdviceResponse aiResponse =
                 new AiApplicationAdviceResponse(
@@ -212,10 +212,11 @@ class ApplicationAdviceServiceTest {
         assertThat(request.documents()).hasSize(1);
         assertThat(request.documents().getFirst().requirementCode())
                 .isEqualTo("LANDLORD_CONFIRMATION");
-        assertThat(request.officialGuide()).isNotNull();
-        assertThat(request.officialGuide().sourceUrl())
+        assertThat(request.officialGuide()).isNull();
+        assertThat(request.retrievedGuideChunks()).hasSize(1);
+        assertThat(request.retrievedGuideChunks().getFirst().sourceUrl())
                 .isEqualTo("https://example.test/guide");
-        assertThat(request.officialGuide().deadline())
+        assertThat(request.retrievedGuideChunks().getFirst().content())
                 .isEqualTo("Within two weeks.");
         assertThat(request.userAnswers()).isEmpty();
     }
@@ -321,6 +322,10 @@ class ApplicationAdviceServiceTest {
         when(analysisRepository
                 .findByDocumentApplicationIdOrderByCreatedAtDesc(
                         applicationId))
+                .thenReturn(List.of());
+        when(guideRetrievalService.retrieve(
+                org.mockito.ArgumentMatchers.eq(processId),
+                any(String.class)))
                 .thenReturn(List.of());
         when(processGuideRepository.findByProcessId(processId))
                 .thenReturn(Optional.empty());

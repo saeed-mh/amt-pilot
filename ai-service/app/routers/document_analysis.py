@@ -8,9 +8,7 @@ from app.services.document_analyzer import DocumentAnalyzer
 from app.services.pdf_text_extractor import PdfTextExtractor
 
 MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
-AI_UNAVAILABLE_MESSAGE = (
-    "AI analysis is temporarily unavailable. Please try again shortly."
-)
+AI_UNAVAILABLE_MESSAGE = "AI analysis is temporarily unavailable. Please try again shortly."
 
 router = APIRouter(
     prefix="/api/v1/documents",

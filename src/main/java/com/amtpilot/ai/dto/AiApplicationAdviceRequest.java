@@ -10,6 +10,8 @@ public record AiApplicationAdviceRequest(
         @JsonProperty("process_title") String processTitle,
         String city,
         @JsonProperty("official_guide") AiOfficialProcessGuideRequest officialGuide,
+        @JsonProperty("retrieved_guide_chunks")
+        List<AiRetrievedGuideChunkRequest> retrievedGuideChunks,
         List<AiApplicationRequirementRequest> requirements,
         List<AiAnalyzedDocumentRequest> documents,
         @JsonProperty("user_answers") Map<String, String> userAnswers) {

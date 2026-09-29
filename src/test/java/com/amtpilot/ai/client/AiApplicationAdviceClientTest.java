@@ -67,6 +67,7 @@ class AiApplicationAdviceClientTest {
                             "source_url": "https://example.test/guide",
                             "verified_at": "2026-09-27"
                           },
+                          "retrieved_guide_chunks": [],
                           "requirements": [],
                           "documents": [],
                           "user_answers": {
@@ -112,6 +113,7 @@ class AiApplicationAdviceClientTest {
                                 LocalDate.of(2026, 9, 27)),
                         List.of(),
                         List.of(),
+                        List.of(),
                         Map.of(
                                 "Do you have the original document?",
                                 "Yes")));
@@ -145,6 +147,7 @@ class AiApplicationAdviceClientTest {
                         "Address Registration",
                         "Dortmund",
                         null,
+                        List.of(),
                         List.of(),
                         List.of(),
                         Map.of());

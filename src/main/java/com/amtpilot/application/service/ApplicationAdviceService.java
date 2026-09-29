@@ -15,6 +15,7 @@ import com.amtpilot.ai.dto.AiApplicationAdviceResponse;
 import com.amtpilot.ai.dto.AiApplicationRequirementRequest;
 import com.amtpilot.ai.dto.AiDocumentAnalysisResponse;
 import com.amtpilot.ai.dto.AiOfficialProcessGuideRequest;
+import com.amtpilot.ai.dto.AiRetrievedGuideChunkRequest;
 import com.amtpilot.application.dto.ApplicationAdviceResponse;
 import com.amtpilot.application.dto.UpdateAdviceAnswersRequest;
 import com.amtpilot.application.exception.ApplicationAdviceNotFoundException;
@@ -27,6 +28,8 @@ import com.amtpilot.entity.ApplicationDocument;
 import com.amtpilot.entity.ApplicationDocumentAnalysis;
 import com.amtpilot.entity.ProcessDefinition;
 import com.amtpilot.entity.ProcessGuide;
+import com.amtpilot.process.dto.ProcessGuideChunk;
+import com.amtpilot.process.service.ProcessGuideRetrievalService;
 import com.amtpilot.repository.ApplicationAdviceRepository;
 import com.amtpilot.repository.ApplicationChecklistItemRepository;
 import com.amtpilot.repository.ApplicationDocumentAnalysisRepository;
@@ -44,6 +47,7 @@ public class ApplicationAdviceService {
     private final ApplicationDocumentAnalysisRepository analysisRepository;
     private final ApplicationAdviceRepository adviceRepository;
     private final ProcessGuideRepository processGuideRepository;
+    private final ProcessGuideRetrievalService guideRetrievalService;
     private final AiApplicationAdviceClient aiClient;
 
     public ApplicationAdviceService(
@@ -52,6 +56,7 @@ public class ApplicationAdviceService {
             ApplicationDocumentAnalysisRepository analysisRepository,
             ApplicationAdviceRepository adviceRepository,
             ProcessGuideRepository processGuideRepository,
+            ProcessGuideRetrievalService guideRetrievalService,
             AiApplicationAdviceClient aiClient) {
 
         this.applicationRepository = applicationRepository;
@@ -59,6 +64,7 @@ public class ApplicationAdviceService {
         this.analysisRepository = analysisRepository;
         this.adviceRepository = adviceRepository;
         this.processGuideRepository = processGuideRepository;
+        this.guideRetrievalService = guideRetrievalService;
         this.aiClient = aiClient;
     }
 
@@ -185,19 +191,75 @@ public class ApplicationAdviceService {
                 .map(this::toAnalyzedDocument)
                 .toList();
 
-        AiOfficialProcessGuideRequest officialGuide =
-                processGuideRepository.findByProcessId(process.getId())
+        List<ProcessGuideChunk> retrievedChunks = guideRetrievalService
+                .retrieve(
+                        process.getId(),
+                        buildRetrievalQuery(
+                                process,
+                                checklistItems,
+                                analyses,
+                                userAnswers));
+
+        AiOfficialProcessGuideRequest officialGuide = retrievedChunks.isEmpty()
+                ? processGuideRepository.findByProcessId(process.getId())
                         .map(this::toOfficialGuide)
-                        .orElse(null);
+                        .orElse(null)
+                : null;
+
+        List<AiRetrievedGuideChunkRequest> retrievedGuideChunks =
+                retrievedChunks.stream()
+                        .map(chunk -> new AiRetrievedGuideChunkRequest(
+                                chunk.section(),
+                                chunk.content(),
+                                chunk.sourceTitle(),
+                                chunk.sourceUrl(),
+                                chunk.verifiedAt()))
+                        .toList();
 
         return new AiApplicationAdviceRequest(
                 process.getCode(),
                 process.getTitle(),
                 process.getCity(),
                 officialGuide,
+                retrievedGuideChunks,
                 requirements,
                 documents,
                 userAnswers);
+    }
+
+    private String buildRetrievalQuery(
+            ProcessDefinition process,
+            List<ApplicationChecklistItem> checklistItems,
+            List<ApplicationDocumentAnalysis> analyses,
+            Map<String, String> userAnswers) {
+
+        StringBuilder query = new StringBuilder()
+                .append(process.getTitle())
+                .append(" in ")
+                .append(process.getCity());
+
+        checklistItems.forEach(item -> query
+                .append("\nRequirement: ")
+                .append(item.getRequirement().getTitle()));
+
+        analyses.forEach(analysis -> {
+            query.append("\nDocument summary: ")
+                    .append(analysis.getSummary());
+            analysis.getMissingOrUnclear().forEach(value -> query
+                    .append("\nMissing or unclear: ")
+                    .append(value));
+            analysis.getWarnings().forEach(value -> query
+                    .append("\nWarning: ")
+                    .append(value));
+        });
+
+        userAnswers.forEach((question, answer) -> query
+                .append("\nUser context: ")
+                .append(question)
+                .append(" ")
+                .append(answer));
+
+        return query.toString();
     }
 
     private AiOfficialProcessGuideRequest toOfficialGuide(

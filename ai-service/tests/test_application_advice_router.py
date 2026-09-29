@@ -28,6 +28,7 @@ def request_body() -> dict:
             }
         ],
         "official_guide": None,
+        "retrieved_guide_chunks": [],
         "documents": [],
         "user_answers": {},
     }

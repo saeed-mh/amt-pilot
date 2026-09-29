@@ -142,6 +142,53 @@ def test_attaches_trusted_requirement_source_instead_of_model_generated_source()
     assert len(result.official_source_references) == 1
 
 
+def test_builds_source_references_only_from_retrieved_guide_chunks() -> None:
+    advisor, structured_model = create_advisor_with_fake_model()
+    request_data = application_request().model_dump()
+    request_data["official_guide"] = None
+    request_data["retrieved_guide_chunks"] = [
+        {
+            "section": "deadline",
+            "content": "Register within two weeks after moving.",
+            "source_title": "Official registration guide",
+            "source_url": "https://example.test/registration",
+            "verified_at": "2026-09-27",
+        },
+        {
+            "section": "steps",
+            "content": "Collect the required documents.",
+            "source_title": "Official registration guide",
+            "source_url": "https://example.test/registration",
+            "verified_at": "2026-09-27",
+        },
+    ]
+    structured_model.invoke.return_value = ApplicationAdviceDraft(
+        readiness="ACTION_REQUIRED",
+        summary="Complete the registration on time.",
+        requirement_assessments=[],
+        inconsistencies=[],
+        next_steps=["Collect the required documents."],
+        questions_for_user=[],
+        official_guide_sections_used=["deadline"],
+        disclaimer="Guidance only; not legal advice.",
+    )
+
+    result = advisor.advise(ApplicationAdviceRequest.model_validate(request_data))
+
+    assert [reference.model_dump() for reference in result.official_source_references] == [
+        {
+            "section": "deadline",
+            "statements": ["Register within two weeks after moving."],
+            "source_title": "Official registration guide",
+            "source_url": "https://example.test/registration",
+            "verified_at": result.official_source_references[0].verified_at,
+        }
+    ]
+
+    messages = structured_model.invoke.call_args.args[0]
+    assert "retrieved_guide_chunks" in messages[1].content
+
+
 def test_converts_model_failure_to_unavailable_error() -> None:
     advisor, structured_model = create_advisor_with_fake_model()
     structured_model.invoke.side_effect = ModelAPIError("provider unavailable")

@@ -79,6 +79,16 @@ class OfficialProcessGuide(BaseModel):
     verified_at: date
 
 
+class RetrievedGuideChunk(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    section: GuideSection
+    content: str
+    source_title: str
+    source_url: str
+    verified_at: date
+
+
 class ApplicationAdviceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -86,9 +96,25 @@ class ApplicationAdviceRequest(BaseModel):
     process_title: str
     city: str
     official_guide: OfficialProcessGuide | None = None
+    retrieved_guide_chunks: list[RetrievedGuideChunk] = Field(default_factory=list)
     requirements: list[ApplicationRequirement]
     documents: list[AnalyzedDocument]
     user_answers: dict[str, str] = Field(default_factory=dict)
+
+
+class EmbeddingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    texts: list[str] = Field(min_length=1, max_length=100)
+    task_type: Literal["RETRIEVAL_DOCUMENT", "RETRIEVAL_QUERY"]
+
+
+class EmbeddingResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    model: str
+    dimension: int
+    embeddings: list[list[float]]
 
 
 class RequirementAssessment(BaseModel):

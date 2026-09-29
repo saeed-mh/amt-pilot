@@ -44,9 +44,7 @@ def test_returns_structured_document_analysis() -> None:
     )
     structured_model.invoke.return_value = expected
 
-    result = analyzer.analyze_text(
-        "Meldebescheinigung f\u00fcr eine Adresse in Dortmund"
-    )
+    result = analyzer.analyze_text("Meldebescheinigung f\u00fcr eine Adresse in Dortmund")
 
     assert result == expected
     structured_model.invoke.assert_called_once()
