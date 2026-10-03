@@ -6,7 +6,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 
 ## Current status
 
-**Last updated: 29 September 2026**
+**Last updated: 3 October 2026**
 
 ### Key features
 
@@ -17,6 +17,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 - Hybrid PDF extraction with automatic local German/English OCR fallback for scanned pages
 - AI-powered analysis of uploaded PDFs, including document classification, structured field extraction, evidence, missing information, and warnings
 - Grounded RAG review using Gemini embeddings and PostgreSQL `pgvector` to retrieve the most relevant official guidance before assessing uploaded documents
+- Deterministic validation safeguards for important document distinctions, such as recognizing that a `Meldebestätigung` or `Anmeldebestätigung` cannot replace the required `Wohnungsgeberbestätigung`
 - Source-backed readiness assessments showing satisfied, missing, or unclear requirements with citations and practical next steps
 - Human-in-the-loop clarification: users can add context, save their answers, and request an answer-aware reanalysis without treating their statements as document evidence
 - Responsive Vue 3 interface with English and German language support
@@ -31,7 +32,7 @@ PDF upload -> native text or OCR -> structured extraction -> semantic retrieval 
 
 Spring Boot manages users, applications, documents, trusted process guidance, vector storage, and the asynchronous analysis workflow. On the first analysis, official guidance is split into searchable chunks, embedded with Gemini, and stored in PostgreSQL. For each review, AmtPilot embeds the application context and retrieves the five closest official chunks using cosine similarity.
 
-A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` for structured document extraction, embeddings, and the final application review. Only the retrieved official context is sent to the review model, while Spring Boot attaches deterministic source citations to the result. The first RAG corpus covers Dortmund Address Registration.
+A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` for structured document extraction, embeddings, and the final application review. Only the retrieved official context is sent to the review model, while Spring Boot attaches deterministic source citations to the result. Critical validation rules also correct unsafe model classifications before results reach the user. The first RAG corpus covers Dortmund Address Registration.
 
 Users can provide clarifying context and trigger another analysis. Their answers influence personalized guidance but remain untrusted context: they cannot replace uploaded evidence or override official information. Temporary provider failures are handled without losing the application state.
 
