@@ -285,3 +285,72 @@ def test_includes_saved_user_answers_in_model_context() -> None:
     assert "visibly acknowledge every relevant answer" in messages[0].content
     assert "Are civil status documents relevant?" in messages[1].content
     assert "No, I am registering alone." in messages[1].content
+
+
+@pytest.mark.parametrize(
+    "document_type",
+    [
+        "Meldebestätigung / Anmeldebestätigung",
+        "Meldebescheinigung",
+        "Registration certificate",
+    ],
+)
+def test_registration_confirmation_cannot_satisfy_landlord_confirmation(
+    document_type: str,
+) -> None:
+    advisor, structured_model = create_advisor_with_fake_model()
+    request_data = application_request().model_dump()
+    request_data["documents"] = [
+        {
+            "original_filename": "anmeldung_letter.pdf",
+            "requirement_code": "LANDLORD_CONFIRMATION",
+            "analysis": {
+                "document_type": document_type,
+                "primary_language": "de",
+                "summary": "A registration confirmation issued by the authority.",
+                "extracted_fields": [],
+                "missing_or_unclear": [],
+                "warnings": [],
+            },
+        }
+    ]
+    request = ApplicationAdviceRequest.model_validate(request_data)
+    structured_model.invoke.return_value = ApplicationAdviceDraft(
+        readiness="READY_TO_SUBMIT",
+        summary="All documents are ready.",
+        requirement_assessments=[
+            {
+                "requirement_code": "LANDLORD_CONFIRMATION",
+                "status": "SATISFIED",
+                "explanation": "The registration confirmation contains an address.",
+                "supporting_documents": ["anmeldung_letter.pdf"],
+            }
+        ],
+        inconsistencies=[],
+        next_steps=["Submit anmeldung_letter.pdf at the appointment."],
+        questions_for_user=[],
+        official_guide_sections_used=["steps"],
+        disclaimer="Guidance only; not legal advice.",
+    )
+
+    result = advisor.advise(request)
+
+    assert result.readiness == "ACTION_REQUIRED"
+    assert result.requirement_assessments[0].status == "NEEDS_REVIEW"
+    assert "not the required landlord confirmation" in (
+        result.requirement_assessments[0].explanation
+    )
+    assert result.requirement_assessments[0].supporting_documents == [
+        "anmeldung_letter.pdf"
+    ]
+    assert result.next_steps == [
+        (
+            "Replace anmeldung_letter.pdf with a current Wohnungsgeberbestätigung "
+            "completed by the landlord."
+        )
+    ]
+    assert "registration confirmation is a different document" in result.summary
+    assert len(result.inconsistencies) == 1
+
+    messages = structured_model.invoke.call_args.args[0]
+    assert "Never mark LANDLORD_CONFIRMATION as SATISFIED" in messages[0].content

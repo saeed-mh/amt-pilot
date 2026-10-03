@@ -1,3 +1,4 @@
+import unicodedata
 from datetime import date
 
 from langchain_core.exceptions import ModelAPIError
@@ -7,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config import Settings, get_settings
 from app.exceptions import DocumentAnalysisUnavailableError
 from app.schemas import (
+    AnalyzedDocument,
     ApplicationAdvice,
     ApplicationAdviceDraft,
     ApplicationAdviceRequest,
@@ -52,6 +54,13 @@ For every requirement, return exactly one assessment:
   application context. Never mark an optional requirement SATISFIED merely
   because it is optional.
 
+For LANDLORD_CONFIRMATION, distinguish document types strictly. A
+Meldebestätigung, Meldebescheinigung, Anmeldebestätigung, registration
+confirmation, or registration certificate is issued after registration and
+does not satisfy the requirement for a current Wohnungsgeberbestätigung
+completed by the landlord. Never mark LANDLORD_CONFIRMATION as SATISFIED using
+one of those documents.
+
 Set readiness to:
 - READY_TO_SUBMIT only when every required requirement is SATISFIED, every
   other requirement is SATISFIED or NOT_APPLICABLE, and there are no material
@@ -77,6 +86,25 @@ INVALID_DOCUMENT_MARKERS = (
     "sample",
     "synthetic",
     "test fixture",
+)
+
+LANDLORD_CONFIRMATION_REQUIREMENT_CODE = "LANDLORD_CONFIRMATION"
+REGISTRATION_CONFIRMATION_MARKERS = (
+    "anmeldung confirmation",
+    "anmeldebestatigung",
+    "anmeldebescheinigung",
+    "certificate of registration",
+    "certificate of residence registration",
+    "confirmation of registration",
+    "confirmation of residence registration",
+    "meldebestatigung",
+    "meldebescheinigung",
+    "registration certificate",
+    "registration confirmation",
+)
+LANDLORD_CONFIRMATION_MISMATCH_EXPLANATION = (
+    "{filename} is a registration confirmation issued after registration, not the required "
+    "landlord confirmation (Wohnungsgeberbestätigung)."
 )
 
 
@@ -129,13 +157,32 @@ class ApplicationAdvisor:
             requirement.code: requirement for requirement in request.requirements
         }
         invalid_documents = self._invalid_documents(request)
+        mismatched_landlord_documents = self._mismatched_landlord_documents(request)
 
         assessments = []
         for assessment in draft.requirement_assessments:
             requirement = requirements_by_code.get(assessment.requirement_code)
+            assessment_data = assessment.model_dump()
+
+            if (
+                assessment.requirement_code == LANDLORD_CONFIRMATION_REQUIREMENT_CODE
+                and mismatched_landlord_documents
+            ):
+                filenames = [
+                    document.original_filename for document in mismatched_landlord_documents
+                ]
+                assessment_data.update(
+                    status="NEEDS_REVIEW",
+                    explanation=" ".join(
+                        LANDLORD_CONFIRMATION_MISMATCH_EXPLANATION.format(filename=filename)
+                        for filename in filenames
+                    ),
+                    supporting_documents=filenames,
+                )
+
             assessments.append(
                 RequirementAssessment(
-                    **assessment.model_dump(),
+                    **assessment_data,
                     official_source_title=(
                         requirement.official_source_title if requirement else None
                     ),
@@ -148,12 +195,43 @@ class ApplicationAdvisor:
             request,
         )
 
+        mismatch_messages = [
+            LANDLORD_CONFIRMATION_MISMATCH_EXPLANATION.format(
+                filename=document.original_filename
+            )
+            for document in mismatched_landlord_documents
+        ]
+        inconsistencies = list(draft.inconsistencies)
+        for message in mismatch_messages:
+            if message not in inconsistencies:
+                inconsistencies.append(message)
+
+        summary = draft.summary
+        if mismatched_landlord_documents:
+            mismatch_summary = (
+                "The required landlord confirmation is still missing because a registration "
+                "confirmation is a different document."
+            )
+            summary = (
+                mismatch_summary
+                if draft.readiness == "READY_TO_SUBMIT"
+                else f"{mismatch_summary} {summary}"
+            )
+
         return ApplicationAdvice(
-            readiness=("ACTION_REQUIRED" if invalid_documents else draft.readiness),
-            summary=draft.summary,
+            readiness=(
+                "ACTION_REQUIRED"
+                if invalid_documents or mismatched_landlord_documents
+                else draft.readiness
+            ),
+            summary=summary,
             requirement_assessments=assessments,
-            inconsistencies=draft.inconsistencies,
-            next_steps=self._next_steps(draft.next_steps, invalid_documents),
+            inconsistencies=inconsistencies,
+            next_steps=self._next_steps(
+                draft.next_steps,
+                invalid_documents,
+                mismatched_landlord_documents,
+            ),
             questions_for_user=draft.questions_for_user,
             official_source_references=references,
             disclaimer=draft.disclaimer,
@@ -181,23 +259,63 @@ class ApplicationAdvisor:
 
         return invalid_documents
 
+    def _mismatched_landlord_documents(
+        self,
+        request: ApplicationAdviceRequest,
+    ) -> list[AnalyzedDocument]:
+        mismatched_documents = []
+
+        for document in request.documents:
+            if document.requirement_code != LANDLORD_CONFIRMATION_REQUIREMENT_CODE:
+                continue
+
+            document_description = self._normalize_document_description(
+                f"{document.analysis.document_type} {document.analysis.summary}"
+            )
+            if any(
+                marker in document_description
+                for marker in REGISTRATION_CONFIRMATION_MARKERS
+            ):
+                mismatched_documents.append(document)
+
+        return mismatched_documents
+
+    @staticmethod
+    def _normalize_document_description(value: str) -> str:
+        normalized = unicodedata.normalize("NFKD", value.casefold())
+        return "".join(character for character in normalized if not unicodedata.combining(character))
+
     def _next_steps(
         self,
         generated_steps: list[str],
         invalid_documents: list[tuple[str, str]],
+        mismatched_landlord_documents: list[AnalyzedDocument],
     ) -> list[str]:
+        mismatched_filenames = {
+            document.original_filename.casefold()
+            for document in mismatched_landlord_documents
+        }
         invalid_filenames = {filename.casefold() for filename, _ in invalid_documents}
+        problematic_filenames = invalid_filenames | mismatched_filenames
         remaining_steps = [
             step
             for step in generated_steps
-            if not any(filename in step.casefold() for filename in invalid_filenames)
+            if not any(filename in step.casefold() for filename in problematic_filenames)
+        ]
+        mismatch_replacement_steps = [
+            (
+                f"Replace {document.original_filename} with a current "
+                "Wohnungsgeberbestätigung completed by the landlord."
+            )
+            for document in mismatched_landlord_documents
         ]
         replacement_steps = [
             f"Replace {filename} with a valid, official {requirement_title}."
             for filename, requirement_title in invalid_documents
+            if filename.casefold() not in mismatched_filenames
         ]
 
-        return replacement_steps + remaining_steps
+        return mismatch_replacement_steps + replacement_steps + remaining_steps
 
     def _official_references(
         self,
