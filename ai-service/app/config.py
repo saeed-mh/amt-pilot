@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     google_model: str = "gemini-3.5-flash-lite"
     google_embedding_model: str = "gemini-embedding-001"
     embedding_dimension: int = 768
+    ocr_enabled: bool = True
+    ocr_command: str = "ocrmypdf"
+    ocr_languages: str = "deu+eng"
+    ocr_tessdata_prefix: str | None = None
+    ocr_timeout_seconds: int = 120
+    ocr_max_pages: int = 20
+    ocr_min_text_characters: int = 20
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

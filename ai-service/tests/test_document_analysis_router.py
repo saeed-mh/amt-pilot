@@ -2,11 +2,12 @@ from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
 
-from app.exceptions import DocumentAnalysisUnavailableError
+from app.exceptions import DocumentAnalysisUnavailableError, OcrUnavailableError
 from app.main import app
 from app.routers.document_analysis import (
     AI_UNAVAILABLE_MESSAGE,
     MAX_PDF_SIZE_BYTES,
+    OCR_UNAVAILABLE_MESSAGE,
     get_document_analyzer,
     get_pdf_text_extractor,
 )
@@ -116,6 +117,37 @@ def test_rejects_pdf_without_readable_text() -> None:
 
     assert response.status_code == 422
     assert response.json() == {"detail": "The PDF does not contain readable text"}
+    extractor.extract_text.assert_called_once_with(b"image-only-pdf")
+    analyzer.analyze_text.assert_not_called()
+
+
+def test_returns_service_unavailable_when_ocr_runtime_is_missing() -> None:
+    extractor = Mock(spec=PdfTextExtractor)
+    extractor.extract_text.side_effect = OcrUnavailableError("OCR is not installed")
+
+    analyzer = Mock(spec=DocumentAnalyzer)
+
+    app.dependency_overrides[get_pdf_text_extractor] = lambda: extractor
+    app.dependency_overrides[get_document_analyzer] = lambda: analyzer
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/documents/analyze",
+                files={
+                    "file": (
+                        "scanned-document.pdf",
+                        b"image-only-pdf",
+                        "application/pdf",
+                    )
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": OCR_UNAVAILABLE_MESSAGE}
+    assert response.headers["retry-after"] == "30"
     extractor.extract_text.assert_called_once_with(b"image-only-pdf")
     analyzer.analyze_text.assert_not_called()
 

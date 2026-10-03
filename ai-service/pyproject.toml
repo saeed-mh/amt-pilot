@@ -11,6 +11,7 @@ dependencies = [
     "pydantic-settings",
     "python-multipart",
     "pypdf",
+    "ocrmypdf",
 ]
 
 [project.optional-dependencies]
