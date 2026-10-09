@@ -45,3 +45,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+ai-service/evals/reports/
+.dev-logs/
+.dev-jwt-secret

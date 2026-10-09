@@ -6,7 +6,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 
 ## Current status
 
-**Last updated: 3 October 2026**
+**Last updated: 9 October 2026**
 
 ### Key features
 
@@ -20,6 +20,7 @@ AmtPilot is a full-stack portfolio project that helps users understand German ad
 - Deterministic validation safeguards for important document distinctions, such as recognizing that a `Meldebestätigung` or `Anmeldebestätigung` cannot replace the required `Wohnungsgeberbestätigung`
 - Source-backed readiness assessments showing satisfied, missing, or unclear requirements with citations and practical next steps
 - Human-in-the-loop clarification: users can add context, save their answers, and request an answer-aware reanalysis without treating their statements as document evidence
+- Versioned synthetic AI evaluations measuring readiness, requirement accuracy, grounded citations, guidance, and unsafe approvals
 - Responsive Vue 3 interface with English and German language support
 - Automated backend, AI-service, and frontend quality checks
 
@@ -63,6 +64,18 @@ OCR_ENABLED=true
 OCR_LANGUAGES=deu+eng
 AI_SERVICE_URL=http://localhost:8000
 ```
+
+After installing the frontend and AI-service dependencies once, start the complete
+development environment from Git Bash or another Bash terminal:
+
+```bash
+bash start-dev.sh
+```
+
+The launcher starts PostgreSQL, Spring Boot, FastAPI, and Vue. Press `Ctrl+C` to
+stop the application services. Logs are written to `.dev-logs/`. If
+`JWT_SECRET` is missing, the launcher generates a persistent development-only
+secret in the ignored `.dev-jwt-secret` file.
 
 Start PostgreSQL and the Spring Boot backend:
 
@@ -133,5 +146,9 @@ AI service:
 ```bash
 cd ai-service
 pytest
-ruff check app tests
+ruff check app tests evals
+python -m evals.run --fail-below 0.90
 ```
+
+The evaluation command calls the configured Gemini model and may use API quota.
+Its versioned synthetic cases contain no personal documents.

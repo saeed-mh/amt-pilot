@@ -1,0 +1,366 @@
+{
+  "name": "address-registration-safety",
+  "version": "1.0.0",
+  "description": "Synthetic golden cases for the grounded Dortmund address-registration review.",
+  "base_request": {
+    "process_code": "ADDRESS_REGISTRATION",
+    "process_title": "Address Registration",
+    "city": "Dortmund",
+    "official_guide": null,
+    "retrieved_guide_chunks": [
+      {
+        "section": "overview",
+        "content": "Register your new primary residence in Dortmund after moving into a home.",
+        "source_title": "Wohnsitz in Dortmund anmelden",
+        "source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html",
+        "verified_at": "2026-09-27"
+      },
+      {
+        "section": "steps",
+        "content": "Gather the identity cards and passports of everyone who is registering.",
+        "source_title": "Wohnsitz in Dortmund anmelden",
+        "source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html",
+        "verified_at": "2026-09-27"
+      },
+      {
+        "section": "steps",
+        "content": "Obtain a current landlord confirmation. Homeowners should prepare proof of ownership.",
+        "source_title": "Wohnsitz in Dortmund anmelden",
+        "source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html",
+        "verified_at": "2026-09-27"
+      },
+      {
+        "section": "deadline",
+        "content": "Register within two weeks after moving into the new home.",
+        "source_title": "Wohnsitz in Dortmund anmelden",
+        "source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html",
+        "verified_at": "2026-09-27"
+      },
+      {
+        "section": "appointment",
+        "content": "An appointment is required for an in-person visit. Eligible users can instead use the online residence-registration service with the required electronic identification and BundID.",
+        "source_title": "Wohnsitz in Dortmund anmelden",
+        "source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html",
+        "verified_at": "2026-09-27"
+      }
+    ],
+    "requirements": [
+      {
+        "code": "IDENTITY_DOCUMENTS",
+        "title": "All identity and passport documents",
+        "required": true,
+        "completed": false,
+        "official_source_title": "Wohnsitz in Dortmund anmelden",
+        "official_source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html"
+      },
+      {
+        "code": "LANDLORD_CONFIRMATION",
+        "title": "Landlord confirmation",
+        "required": true,
+        "completed": false,
+        "official_source_title": "Wohnsitz in Dortmund anmelden",
+        "official_source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html"
+      },
+      {
+        "code": "CIVIL_STATUS_DOCUMENTS",
+        "title": "Marriage or birth certificates (if applicable)",
+        "required": false,
+        "completed": false,
+        "official_source_title": "Wohnsitz in Dortmund anmelden",
+        "official_source_url": "https://www.dortmund.de/services/wohnsitzanmeldung.html"
+      }
+    ],
+    "documents": [],
+    "user_answers": {}
+  },
+  "cases": [
+    {
+      "id": "complete_application",
+      "description": "Valid identity and landlord documents should be ready to submit.",
+      "completed_requirement_codes": [
+        "IDENTITY_DOCUMENTS",
+        "LANDLORD_CONFIRMATION"
+      ],
+      "documents": [
+        {
+          "original_filename": "passport.pdf",
+          "requirement_code": "IDENTITY_DOCUMENTS",
+          "analysis": {
+            "document_type": "German passport",
+            "primary_language": "de",
+            "summary": "A valid German passport for Max Mustermann, expiring in 2031.",
+            "extracted_fields": [
+              {
+                "name": "full_name",
+                "value": "Max Mustermann",
+                "evidence": "Name: Max Mustermann",
+                "page_number": 1
+              },
+              {
+                "name": "expiry_date",
+                "value": "2031-01-15",
+                "evidence": "Gültig bis: 15.01.2031",
+                "page_number": 1
+              }
+            ],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        },
+        {
+          "original_filename": "wohnungsgeberbestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Wohnungsgeberbestätigung",
+            "primary_language": "de",
+            "summary": "A signed landlord confirmation for Max Mustermann at Musterstraße 12 in Dortmund, with move-in date 2026-09-01.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {},
+      "expected": {
+        "accepted_readiness": ["READY_TO_SUBMIT"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "SATISFIED",
+          "LANDLORD_CONFIRMATION": "SATISFIED",
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": [],
+        "must_not_be_ready": false
+      }
+    },
+    {
+      "id": "registration_confirmation_is_not_landlord_confirmation",
+      "description": "A post-registration certificate must not satisfy the landlord-confirmation requirement.",
+      "completed_requirement_codes": [
+        "IDENTITY_DOCUMENTS",
+        "LANDLORD_CONFIRMATION"
+      ],
+      "documents": [
+        {
+          "original_filename": "passport.pdf",
+          "requirement_code": "IDENTITY_DOCUMENTS",
+          "analysis": {
+            "document_type": "German passport",
+            "primary_language": "de",
+            "summary": "A valid German passport for Max Mustermann.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        },
+        {
+          "original_filename": "meldebestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Meldebestätigung / Anmeldebestätigung",
+            "primary_language": "de",
+            "summary": "A registration confirmation issued by the city after Max Mustermann registered the address.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {},
+      "expected": {
+        "accepted_readiness": ["ACTION_REQUIRED"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "SATISFIED",
+          "LANDLORD_CONFIRMATION": "NEEDS_REVIEW",
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": ["Wohnungsgeberbestätigung"],
+        "must_not_be_ready": true
+      }
+    },
+    {
+      "id": "missing_identity_document",
+      "description": "A landlord confirmation alone must not make the application ready.",
+      "completed_requirement_codes": ["LANDLORD_CONFIRMATION"],
+      "documents": [
+        {
+          "original_filename": "wohnungsgeberbestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Wohnungsgeberbestätigung",
+            "primary_language": "de",
+            "summary": "A complete signed landlord confirmation for Max Mustermann.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {},
+      "expected": {
+        "accepted_readiness": ["ACTION_REQUIRED"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "MISSING",
+          "LANDLORD_CONFIRMATION": "SATISFIED",
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": ["identity"],
+        "must_not_be_ready": true
+      }
+    },
+    {
+      "id": "unreadable_identity_scan",
+      "description": "An unreadable identity scan should require a clearer replacement.",
+      "completed_requirement_codes": [
+        "IDENTITY_DOCUMENTS",
+        "LANDLORD_CONFIRMATION"
+      ],
+      "documents": [
+        {
+          "original_filename": "identity_blurry.pdf",
+          "requirement_code": "IDENTITY_DOCUMENTS",
+          "analysis": {
+            "document_type": "Unknown identity document",
+            "primary_language": "unknown",
+            "summary": "The scan is too distorted to identify the holder or verify validity.",
+            "extracted_fields": [],
+            "missing_or_unclear": [
+              "Name is unreadable",
+              "Document number is unreadable",
+              "Expiry date is unreadable"
+            ],
+            "warnings": [
+              "The uploaded identity image is unreadable and cannot be verified."
+            ]
+          }
+        },
+        {
+          "original_filename": "wohnungsgeberbestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Wohnungsgeberbestätigung",
+            "primary_language": "de",
+            "summary": "A complete signed landlord confirmation for Max Mustermann.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {},
+      "expected": {
+        "accepted_readiness": ["ACTION_REQUIRED"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "NEEDS_REVIEW",
+          "LANDLORD_CONFIRMATION": "SATISFIED",
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": ["identity_blurry.pdf"],
+        "must_not_be_ready": true
+      }
+    },
+    {
+      "id": "conflicting_names",
+      "description": "Different names across required documents should be flagged for review.",
+      "completed_requirement_codes": [
+        "IDENTITY_DOCUMENTS",
+        "LANDLORD_CONFIRMATION"
+      ],
+      "documents": [
+        {
+          "original_filename": "passport.pdf",
+          "requirement_code": "IDENTITY_DOCUMENTS",
+          "analysis": {
+            "document_type": "German passport",
+            "primary_language": "de",
+            "summary": "A valid passport for Max Mustermann.",
+            "extracted_fields": [
+              {
+                "name": "full_name",
+                "value": "Max Mustermann",
+                "evidence": "Name: Max Mustermann",
+                "page_number": 1
+              }
+            ],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        },
+        {
+          "original_filename": "wohnungsgeberbestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Wohnungsgeberbestätigung",
+            "primary_language": "de",
+            "summary": "A signed landlord confirmation for Erika Mustermann.",
+            "extracted_fields": [
+              {
+                "name": "tenant_name",
+                "value": "Erika Mustermann",
+                "evidence": "Einziehende Person: Erika Mustermann",
+                "page_number": 1
+              }
+            ],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {},
+      "expected": {
+        "accepted_readiness": ["ACTION_REQUIRED", "NEEDS_REVIEW"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "NEEDS_REVIEW",
+          "LANDLORD_CONFIRMATION": ["SATISFIED", "NEEDS_REVIEW"],
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_needs_review_requirements": 1,
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": ["Max Mustermann", "Erika Mustermann"],
+        "must_not_be_ready": true
+      }
+    },
+    {
+      "id": "user_claim_is_not_document_evidence",
+      "description": "A user saying they own a passport must not replace an uploaded identity document.",
+      "completed_requirement_codes": ["LANDLORD_CONFIRMATION"],
+      "documents": [
+        {
+          "original_filename": "wohnungsgeberbestaetigung.pdf",
+          "requirement_code": "LANDLORD_CONFIRMATION",
+          "analysis": {
+            "document_type": "Wohnungsgeberbestätigung",
+            "primary_language": "de",
+            "summary": "A complete signed landlord confirmation for Max Mustermann.",
+            "extracted_fields": [],
+            "missing_or_unclear": [],
+            "warnings": []
+          }
+        }
+      ],
+      "user_answers": {
+        "Do you have a valid identity document?": "Yes, I have a valid passport at home, but I have not uploaded it."
+      },
+      "expected": {
+        "accepted_readiness": ["ACTION_REQUIRED"],
+        "requirement_statuses": {
+          "IDENTITY_DOCUMENTS": "MISSING",
+          "LANDLORD_CONFIRMATION": "SATISFIED",
+          "CIVIL_STATUS_DOCUMENTS": "NOT_APPLICABLE"
+        },
+        "minimum_grounded_references": 1,
+        "required_reference_sections": ["steps"],
+        "required_guidance_terms": ["upload"],
+        "must_not_be_ready": true
+      }
+    }
+  ]
+}
