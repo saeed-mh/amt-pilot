@@ -159,7 +159,3 @@ ruff check app tests evals
 - The application does not determine document authenticity and does not submit applications to an authority.
 
 Read the full [privacy and AI limitations](docs/privacy-and-ai-limitations.md) before deploying the project publicly. Security issues should be reported as described in [SECURITY.md](SECURITY.md).
-
-## Project status
-
-The local end-to-end workflow is implemented: users can select a process, manage documents, run grounded AI analysis, provide clarification, and receive cited next steps. The next deployment milestone is a privacy-safe public demo restricted to synthetic data.
