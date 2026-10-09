@@ -1,154 +1,165 @@
 # AmtPilot
 
-AmtPilot is a full-stack portfolio project that helps users understand German administrative processes, prepare the required documents, and track their applications. The current catalog uses Dortmund as its first real-world example.
+[![CI](https://github.com/saeed-mh/amt-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/saeed-mh/amt-pilot/actions/workflows/ci.yml)
 
-> AmtPilot is an educational project and does not provide legal advice.
+AmtPilot is an AI-assisted full-stack application that helps people understand German administrative processes, prepare the right documents, and identify what to do next. Dortmund address registration is the first end-to-end, source-grounded use case.
 
-## Current status
+> Portfolio and educational project. AmtPilot provides guidance, not legal advice.
 
-**Last updated: 9 October 2026**
+## What it demonstrates
 
-### Key features
+- Secure registration, JWT authentication, and user-owned application data
+- Searchable administrative-process catalog with official sources
+- Application tracking, document checklists, and automatic completeness updates
+- Validated PDF upload, preview, download, and deletion
+- Native PDF extraction plus local German/English OCR for scanned pages
+- Structured Gemini document analysis with evidence, warnings, and missing fields
+- Retrieval-augmented generation (RAG) over trusted official guidance using Gemini embeddings and PostgreSQL `pgvector`
+- Source-backed application reviews with requirement status, inconsistencies, practical next steps, and user clarification
+- Deterministic safeguards for critical document distinctions and unsafe AI classifications
+- English/German Vue interface with responsive application and process views
 
-- Secure registration and JWT-based authentication with user-specific data access
-- Searchable Dortmund catalog containing authorities, administrative processes, requirements, and official sources
-- Application management with interactive checklists and automatic completeness calculation
-- Validated PDF upload, preview, download, and deletion with automatic checklist synchronization
-- Hybrid PDF extraction with automatic local German/English OCR fallback for scanned pages
-- AI-powered analysis of uploaded PDFs, including document classification, structured field extraction, evidence, missing information, and warnings
-- Grounded RAG review using Gemini embeddings and PostgreSQL `pgvector` to retrieve the most relevant official guidance before assessing uploaded documents
-- Deterministic validation safeguards for important document distinctions, such as recognizing that a `Meldebestätigung` or `Anmeldebestätigung` cannot replace the required `Wohnungsgeberbestätigung`
-- Source-backed readiness assessments showing satisfied, missing, or unclear requirements with citations and practical next steps
-- Human-in-the-loop clarification: users can add context, save their answers, and request an answer-aware reanalysis without treating their statements as document evidence
-- Versioned synthetic AI evaluations measuring readiness, requirement accuracy, grounded citations, guidance, and unsafe approvals
-- Responsive Vue 3 interface with English and German language support
-- Automated backend, AI-service, and frontend quality checks
+## Screenshots
 
-### AI workflow
+### Application dashboard
 
-```text
-Official guide -> chunks -> Gemini embeddings -> pgvector index
-PDF upload -> native text or OCR -> structured extraction -> semantic retrieval -> grounded review -> cited guidance
+![AmtPilot dashboard showing an application and available administrative processes](docs/images/dashboard.png)
+
+### Grounded AI review
+
+![AmtPilot AI review showing requirement assessments, evidence, next steps, and official sources](docs/images/ai-review.png)
+
+## Architecture
+
+```mermaid
+flowchart LR
+    User[User] --> Vue[Vue 3 SPA]
+    Vue -->|JWT-protected REST| Spring[Spring Boot API]
+    Spring --> Files[(PDF storage)]
+    Spring --> Postgres[(PostgreSQL + pgvector)]
+    Spring -->|PDFs and grounded context| AI[FastAPI AI service]
+    AI --> OCR[OCRmyPDF + Tesseract]
+    AI --> Gemini[Gemini via LangChain]
+    Gemini --> AI
+    Migrations[Flyway: processes, requirements, official guides] --> Postgres
+    Postgres -->|top-k official guide chunks| Spring
+    AI -->|structured extraction and review| Spring
 ```
 
-Spring Boot manages users, applications, documents, trusted process guidance, vector storage, and the asynchronous analysis workflow. On the first analysis, official guidance is split into searchable chunks, embedded with Gemini, and stored in PostgreSQL. For each review, AmtPilot embeds the application context and retrieves the five closest official chunks using cosine similarity.
+### AI and RAG flow
 
-A separate Python FastAPI service uses LangChain, Google Gemini, Pydantic, and `pypdf` for structured document extraction, embeddings, and the final application review. Only the retrieved official context is sent to the review model, while Spring Boot attaches deterministic source citations to the result. Critical validation rules also correct unsafe model classifications before results reach the user. The first RAG corpus covers Dortmund Address Registration.
+1. Flyway loads reviewed process guidance and official-source metadata.
+2. Spring Boot chunks the guide, requests Gemini embeddings, and stores the vectors in PostgreSQL.
+3. A user uploads PDFs. The AI service extracts native text or applies local OCR when needed.
+4. Spring Boot retrieves the most relevant official chunks for the application context.
+5. Gemini receives the extracted document information, requirements, user context, and only the retrieved guide context.
+6. Pydantic and Java DTOs enforce a structured response; deterministic rules correct important unsafe classifications.
+7. The UI presents evidence, missing items, next steps, and links back to the official source.
 
-Users can provide clarifying context and trigger another analysis. Their answers influence personalized guidance but remain untrusted context: they cannot replace uploaded evidence or override official information. Temporary provider failures are handled without losing the application state.
+## Technology choices
 
-Text-based pages keep their original text. Scanned pages are processed locally with OCRmyPDF and Tesseract before entering the same structured AI-analysis pipeline.
+| Area | Choice | Why |
+| --- | --- | --- |
+| Core API | Java 21, Spring Boot, Spring Security, JPA | Typed domain logic, mature security, and testable service boundaries |
+| AI service | Python 3.11, FastAPI, LangChain, Pydantic | Keeps AI/OCR concerns isolated and validates model output structurally |
+| Models | Google Gemini | Structured document reasoning and embeddings through one provider |
+| Retrieval | PostgreSQL, pgvector | Semantic search without adding a separate vector database |
+| Frontend | Vue 3, Vue Router, Vite | Small, approachable SPA with a fast development workflow |
+| Data | Flyway migrations | Reproducible schema, catalog data, requirements, and official guides |
+| OCR | OCRmyPDF, Tesseract | Local preprocessing for scanned German and English PDFs |
+| Quality | JUnit, Mockito, Testcontainers, Pytest, Ruff, ESLint | Unit, controller, integration, AI-contract, and frontend checks |
 
-### Technology
+## Quality and evaluation
 
-- **Backend:** Java, Spring Boot, Spring Security, JPA
-- **AI service:** Python, FastAPI, LangChain, Google Gemini, Pydantic
-- **Frontend:** Vue 3, Vue Router, Vite
-- **Data and infrastructure:** PostgreSQL, pgvector, Flyway, Docker Compose
-- **Quality:** JUnit, Mockito, Testcontainers, Pytest, Ruff, ESLint
+GitHub Actions verifies the backend, AI service, and frontend on every pull request and push to `main`.
+
+- **Backend:** unit, controller, security, repository, migration, and PostgreSQL integration tests
+- **AI service:** extraction, OCR fallback, embeddings, advice, API contract, and safety-rule tests
+- **AI evaluations:** versioned synthetic cases score requirement accuracy, readiness, grounding, guidance, and unsafe approvals
+- **Frontend:** ESLint/Oxlint checks and a production Vite build
+
+Run the live evaluation separately because it calls Gemini and uses API quota:
+
+```bash
+cd ai-service
+python -m evals.run --fail-below 0.90
+```
+
+See [the evaluation design](ai-service/evals/README.md) for the dataset and scoring rules.
 
 ## Run locally
 
-Requirements: Java 21 or newer, Docker Desktop, Python 3.11 or newer, Tesseract 5 with German and English language data, and a Node.js version supported by `frontend/package.json`.
+### Requirements
 
-Create a root `.env` file from `.env.example` and configure the required secrets:
+- Java 21 or newer
+- Docker Desktop
+- Python 3.11 or newer
+- Node.js `^22.18.0` or `>=24.12.0`
+- Tesseract 5 with German and English language data
+- A Google AI API key
+
+Copy `.env.example` to `.env`, then set at least:
 
 ```env
-JWT_SECRET=replace-with-a-secret-with-at-least-32-characters
+JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
 GOOGLE_API_KEY=replace-with-your-google-ai-api-key
-GOOGLE_MODEL=gemini-3.5-flash-lite
-GOOGLE_EMBEDDING_MODEL=gemini-embedding-001
-EMBEDDING_DIMENSION=768
-AI_RETRIEVAL_LIMIT=5
-OCR_ENABLED=true
-OCR_LANGUAGES=deu+eng
-AI_SERVICE_URL=http://localhost:8000
 ```
 
-After installing the frontend and AI-service dependencies once, start the complete
-development environment from Git Bash or another Bash terminal:
+Install the frontend and AI-service dependencies once:
+
+```bash
+cd frontend && npm install
+cd ../ai-service
+python -m venv .venv
+# Activate .venv, then:
+python -m pip install -e ".[dev]"
+cd ..
+```
+
+Start PostgreSQL, Spring Boot, FastAPI, and Vue together:
 
 ```bash
 bash start-dev.sh
 ```
 
-The launcher starts PostgreSQL, Spring Boot, FastAPI, and Vue. Press `Ctrl+C` to
-stop the application services. Logs are written to `.dev-logs/`. If
-`JWT_SECRET` is missing, the launcher generates a persistent development-only
-secret in the ignored `.dev-jwt-secret` file.
+Press `Ctrl+C` to stop the complete stack. Development logs are written to the ignored `.dev-logs/` directory.
 
-Start PostgreSQL and the Spring Boot backend:
+| Service | URL |
+| --- | --- |
+| Frontend | <http://localhost:5173/> |
+| Backend Swagger UI | <http://localhost:8080/swagger-ui.html> |
+| Backend health | <http://localhost:8080/actuator/health> |
+| AI Swagger UI | <http://localhost:8000/docs> |
+| AI health | <http://localhost:8000/health> |
 
-```bash
-docker compose up -d postgres
-./mvnw spring-boot:run
-```
-
-On Windows, use `./mvnw.cmd spring-boot:run`. Uploaded files are stored in `./uploads` by default, or in the directory configured with `UPLOAD_DIR`.
-
-Start the frontend in a second terminal:
+### Run checks manually
 
 ```bash
-cd frontend
-npm install
-npm run dev
-```
+# Backend
+./mvnw verify
 
-On Windows PowerShell, use `npm.cmd` instead of `npm` if script execution is disabled.
-
-Start the AI service in another terminal:
-
-```bash
-cd ai-service
-python -m venv .venv
-```
-
-Activate the virtual environment. On Windows PowerShell, use `.venv\Scripts\Activate.ps1`. Then install and run the service:
-
-```bash
-python -m pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8000
-```
-
-`pip install` provides OCRmyPDF. Tesseract is a separate system dependency. On Windows, install it with `winget install --id UB-Mannheim.TesseractOCR --exact` and ensure both `eng` and `deu` trained-data files are available. If they are stored outside Tesseract's default folder, set `OCR_TESSDATA_PREFIX` to the complete tessdata directory, including its `configs` folder.
-
-Use sample or properly redacted documents during development. Do not upload sensitive personal documents.
-
-### Local URLs
-
-- Frontend: <http://localhost:5173/>
-- Backend API: <http://localhost:8080/>
-- Backend Swagger UI: <http://localhost:8080/swagger-ui.html>
-- Backend health check: <http://localhost:8080/actuator/health>
-- AI service Swagger UI: <http://localhost:8000/docs>
-- AI service health check: <http://localhost:8000/health>
-
-## Development checks
-
-Backend:
-
-```bash
-./mvnw test
-```
-
-PostgreSQL integration tests require Docker to be running.
-
-Frontend:
-
-```bash
+# Frontend
 cd frontend
 npm run lint
 npm run build
-```
 
-AI service:
-
-```bash
-cd ai-service
+# AI service
+cd ../ai-service
 pytest
 ruff check app tests evals
-python -m evals.run --fail-below 0.90
 ```
 
-The evaluation command calls the configured Gemini model and may use API quota.
-Its versioned synthetic cases contain no personal documents.
+## Privacy and AI limitations
+
+- Do not upload passports, residence documents, or other real personal data to a public portfolio deployment. Use synthetic or properly redacted files.
+- When analysis is requested, extracted document text and grounded context are sent to the configured Gemini service.
+- Uploaded PDFs are stored by the Spring Boot service; the current project is not presented as a production-compliant document vault.
+- AI and OCR can be wrong. Results must be verified against the linked official source.
+- The first fully grounded guide covers Dortmund address registration; other catalog entries do not yet have the same RAG coverage.
+- The application does not determine document authenticity and does not submit applications to an authority.
+
+Read the full [privacy and AI limitations](docs/privacy-and-ai-limitations.md) before deploying the project publicly. Security issues should be reported as described in [SECURITY.md](SECURITY.md).
+
+## Project status
+
+The local end-to-end workflow is implemented: users can select a process, manage documents, run grounded AI analysis, provide clarification, and receive cited next steps. The next deployment milestone is a privacy-safe public demo restricted to synthetic data.
